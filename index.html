@@ -1,0 +1,2098 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ContractLens — Visual Contract Intelligence Dashboard</title>
+
+  <!-- Typography: Inter + JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
+
+  <!-- Tailwind CSS via CDN with exact design system configuration -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "canvas-slate": "#F8FAFC",
+            "panel-surface": "#FFFFFF",
+            "inverse-surface": "#1E293B",
+            "inverse-on-surface": "#E2E8F0",
+            "primary": "#004AC6",
+            "primary-container": "#2563EB",
+            "primary-fixed": "#DBE1FF",
+            "on-primary": "#FFFFFF",
+            "attention-high": "#E11D48",
+            "attention-high-surface": "#FFF1F2",
+            "attention-high-border": "#FECDD3",
+            "attention-high-hover": "#BE123C",
+            "attention-medium": "#F59E0B",
+            "attention-medium-surface": "#FFFBEB",
+            "attention-medium-border": "#FDE68A",
+            "attention-medium-hover": "#D97706",
+            "attention-low": "#EAB308",
+            "attention-low-surface": "#FEFCE8",
+            "attention-low-border": "#FEF08A",
+            "verified-emerald": "#059669",
+            "verified-surface": "#ECFDF5",
+            "verified-border": "#A7F3D0",
+            "bbox-highlight-fill": "rgba(225, 29, 72, 0.12)",
+            "bbox-highlight-active": "rgba(37, 99, 235, 0.22)",
+            "text-primary": "#0F172A",
+            "text-secondary": "#475569",
+            "text-muted": "#94A3B8",
+            "subtle-border": "#E2E8F0",
+            "surface-container": "#E2E8F0",
+            "surface-container-high": "#CBD5E1",
+            "surface-container-low": "#F1F5F9"
+          },
+          fontFamily: {
+            "sans": ["Inter", "sans-serif"],
+            "mono": ["JetBrains Mono", "monospace"]
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    /* Custom scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #F1F5F9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #CBD5E1;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94A3B8;
+    }
+
+    /* BBox pulse highlight animation */
+    @keyframes bboxPulse {
+      0% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.6); }
+      70% { box-shadow: 0 0 0 8px rgba(225, 29, 72, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0); }
+    }
+    .bbox-pulse {
+      animation: bboxPulse 1.8s infinite;
+    }
+
+    /* Modal transition backdrop */
+    .modal-backdrop {
+      backdrop-filter: blur(4px);
+    }
+  </style>
+</head>
+<body class="bg-canvas-slate text-text-primary font-sans antialiased min-h-screen flex flex-col">
+
+  <!-- ========================================================================= -->
+  <!-- TOP HEADER & DISCLAIMER -->
+  <!-- ========================================================================= -->
+  <header class="fixed top-0 left-0 right-0 z-50 bg-inverse-surface text-inverse-on-surface shadow-md">
+    <!-- Non-legal advice banner (Strict PDD requirement) -->
+    <div class="w-full px-4 py-1.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between text-xs">
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-[15px] text-attention-medium">gavel</span>
+        <span class="tracking-wide text-slate-300">
+          <strong class="text-white font-medium">Non-legal advice disclaimer:</strong> Findings highlight extracted lease terms with source grounding. 
+          <span class="text-amber-300 font-mono text-[11px] ml-1">Traceability &gt; Intelligence &gt; Visual Polish.</span>
+        </span>
+      </div>
+      <div class="hidden sm:flex items-center gap-3 font-mono text-[11px] text-slate-400">
+        <span>ENGINE: v2.4-GROUNDED</span>
+        <span class="flex items-center gap-1 text-emerald-400">
+          <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          SCHEMAS VALIDATED
+        </span>
+      </div>
+    </div>
+
+    <!-- Main Navigation Bar -->
+    <div class="h-14 px-4 sm:px-6 flex items-center justify-between gap-4">
+      <!-- Brand Logo & Contract Title Selector -->
+      <div class="flex items-center gap-4 shrink-0">
+        <div class="flex items-center gap-2.5 cursor-pointer" onclick="switchView('overview')">
+          <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold shadow-inner">
+            <span class="material-symbols-outlined text-[20px]">contract</span>
+          </div>
+          <div class="flex flex-col">
+            <span class="font-bold text-base tracking-tight text-white leading-none">ContractLens</span>
+            <span class="font-mono text-[10px] text-slate-400 tracking-wider">VISUAL CONTRACT INTELLIGENCE</span>
+          </div>
+        </div>
+
+        <!-- Document Picker Dropdown -->
+        <div class="hidden md:flex items-center gap-2 pl-4 border-l border-slate-700">
+          <div class="relative">
+            <select id="contractSelector" onchange="onContractChange(this.value)" class="bg-slate-800 text-slate-200 text-xs font-medium py-1.5 pl-3 pr-8 rounded-lg border border-slate-700 hover:border-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer appearance-none">
+              <option value="doc-palm-meadows-2026">4BHK Palm Meadows — Residential Lease (22 pgs)</option>
+              <option value="doc-koramangala-2026">Koramangala 4th Block — Corporate Flat (16 pgs)</option>
+            </select>
+            <span class="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-[16px] text-slate-400 pointer-events-none">arrow_drop_down</span>
+          </div>
+          <div class="flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-950/80 text-emerald-300 border border-emerald-800/80 font-mono text-[11px]">
+            <span class="material-symbols-outlined text-[13px] text-emerald-400">verified</span>
+            <span>100% Traceable</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Five Core Tabs Navigation -->
+      <nav class="hidden lg:flex items-center gap-1 bg-slate-800/80 p-1 rounded-xl border border-slate-700" id="mainTabsNav">
+        <button onclick="switchView('overview')" data-view="overview" class="tab-btn active px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all text-white bg-blue-600 shadow-sm flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-[16px]">dashboard</span>
+          <span>Overview</span>
+        </button>
+        <button onclick="switchView('attention')" data-view="attention" class="tab-btn px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white hover:bg-slate-700/60 flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-[16px]">notification_important</span>
+          <span>Attention</span>
+          <span class="px-1.5 py-0.2 rounded-full text-[10px] bg-rose-500/20 text-rose-300 font-mono font-semibold" id="tabAttentionBadge">7</span>
+        </button>
+        <button onclick="switchView('money')" data-view="money" class="tab-btn px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white hover:bg-slate-700/60 flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-[16px]">payments</span>
+          <span>Money</span>
+        </button>
+        <button onclick="switchView('timeline')" data-view="timeline" class="tab-btn px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white hover:bg-slate-700/60 flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-[16px]">event_repeat</span>
+          <span>Timeline</span>
+          <span class="px-1.5 py-0.2 rounded-full text-[10px] bg-blue-500/20 text-blue-300 font-mono">6</span>
+        </button>
+        <button onclick="switchView('document')" data-view="document" class="tab-btn px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white hover:bg-slate-700/60 flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-[16px]">find_in_page</span>
+          <span>Document</span>
+        </button>
+      </nav>
+
+      <!-- Action Buttons: Upload & Export -->
+      <div class="flex items-center gap-2.5">
+        <button onclick="openUploadModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition-all">
+          <span class="material-symbols-outlined text-[16px]">upload_file</span>
+          <span class="hidden sm:inline">Upload Lease</span>
+        </button>
+        <button onclick="openExportModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition-all">
+          <span class="material-symbols-outlined text-[16px]">ios_share</span>
+          <span class="hidden sm:inline">Export Summary</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile Subnav Strip -->
+    <div class="lg:hidden flex items-center justify-around bg-slate-900 border-t border-slate-800 px-2 py-1.5 overflow-x-auto text-xs">
+      <button onclick="switchView('overview')" class="px-2 py-1 text-slate-300 font-medium hover:text-white">Overview</button>
+      <button onclick="switchView('attention')" class="px-2 py-1 text-slate-300 font-medium hover:text-white">Attention (7)</button>
+      <button onclick="switchView('money')" class="px-2 py-1 text-slate-300 font-medium hover:text-white">Money</button>
+      <button onclick="switchView('timeline')" class="px-2 py-1 text-slate-300 font-medium hover:text-white">Timeline</button>
+      <button onclick="switchView('document')" class="px-2 py-1 text-slate-300 font-medium hover:text-white">Document</button>
+    </div>
+  </header>
+
+  <!-- ========================================================================= -->
+  <!-- MAIN WORKSPACE CONTAINER WITH COLLAPSIBLE SIDEBAR -->
+  <!-- ========================================================================= -->
+  <div class="flex-1 flex pt-24 min-h-screen">
+    
+    <!-- LEFT AUDIT SIDEBAR -->
+    <aside class="hidden xl:flex flex-col w-64 bg-white border-r border-subtle-border p-4 gap-6 shrink-0 justify-between">
+      <div class="flex flex-col gap-4">
+        <!-- Sidebar Category Header -->
+        <div class="flex items-center justify-between">
+          <span class="font-mono text-[11px] uppercase tracking-wider text-text-muted font-semibold">Audit Stream Status</span>
+          <span class="h-2 w-2 rounded-full bg-verified-emerald"></span>
+        </div>
+
+        <!-- Attention Level Counters -->
+        <div class="flex flex-col gap-2">
+          <div onclick="switchView('attention', 'high')" class="group flex items-center justify-between p-2.5 rounded-xl bg-attention-high-surface border border-attention-high-border text-attention-high hover:shadow-sm cursor-pointer transition-all">
+            <div class="flex items-center gap-2">
+              <span class="h-2.5 w-2.5 rounded-full bg-attention-high"></span>
+              <span class="text-xs font-semibold">High Attention</span>
+            </div>
+            <span class="font-mono text-xs font-bold" id="sideHighCount">2</span>
+          </div>
+
+          <div onclick="switchView('attention', 'medium')" class="group flex items-center justify-between p-2.5 rounded-xl bg-attention-medium-surface border border-attention-medium-border text-attention-medium-hover hover:shadow-sm cursor-pointer transition-all">
+            <div class="flex items-center gap-2">
+              <span class="h-2.5 w-2.5 rounded-full bg-attention-medium"></span>
+              <span class="text-xs font-semibold">Medium Attention</span>
+            </div>
+            <span class="font-mono text-xs font-bold" id="sideMedCount">3</span>
+          </div>
+
+          <div onclick="switchView('attention', 'low')" class="group flex items-center justify-between p-2.5 rounded-xl bg-attention-low-surface border border-attention-low-border text-text-primary hover:shadow-sm cursor-pointer transition-all">
+            <div class="flex items-center gap-2">
+              <span class="h-2.5 w-2.5 rounded-full bg-attention-low"></span>
+              <span class="text-xs font-semibold">Low Attention</span>
+            </div>
+            <span class="font-mono text-xs font-bold" id="sideLowCount">2</span>
+          </div>
+        </div>
+
+        <!-- Provenance Check Metrics -->
+        <div class="p-3 bg-canvas-slate rounded-xl border border-subtle-border flex flex-col gap-2">
+          <span class="font-mono text-[10px] uppercase text-text-muted font-bold tracking-wider">Grounding Integrity</span>
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-text-secondary">Source Verification</span>
+            <span class="font-mono text-xs text-verified-emerald font-bold">100% Pass</span>
+          </div>
+          <div class="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+            <div class="bg-verified-emerald h-full w-full"></div>
+          </div>
+          <div class="flex items-center justify-between text-[11px] text-text-muted mt-1">
+            <span>Evidence Gate</span>
+            <span class="font-mono">Pydantic v2.8</span>
+          </div>
+        </div>
+
+        <!-- Contract Details Quick View -->
+        <div class="p-3 bg-canvas-slate rounded-xl border border-subtle-border flex flex-col gap-1.5 text-xs">
+          <span class="font-mono text-[10px] uppercase text-text-muted font-bold tracking-wider">Active File</span>
+          <p class="font-medium text-text-primary truncate" id="sideFilename">4BHK Palm Meadows.pdf</p>
+          <span class="text-[11px] text-text-muted" id="sidePageCount">22 pages • 11 months</span>
+          <div class="mt-1 pt-1.5 border-t border-slate-200 flex items-center justify-between text-[11px]">
+            <span class="text-text-muted">SHA-256</span>
+            <span class="font-mono text-blue-600 truncate max-w-[100px]" id="sideSha">9b2d87e...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Active Coordinate Engine Status -->
+      <div class="p-3 bg-slate-900 text-slate-300 rounded-xl flex flex-col gap-1 text-xs">
+        <div class="flex items-center justify-between">
+          <span class="font-mono text-[10px] uppercase text-slate-400">BBox Engine</span>
+          <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
+        </div>
+        <div class="flex items-center justify-between font-mono text-[11px] text-white">
+          <span>Active Coordinate Sync</span>
+          <span class="text-blue-400">ON</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- CENTER DYNAMIC CONTENT AREA (Houses all 5 Views) -->
+    <main class="flex-1 overflow-x-hidden p-4 sm:p-6 lg:p-8 max-w-[1720px] mx-auto w-full">
+
+      <!-- =================================================================== -->
+      <!-- VIEW 1: OVERVIEW -->
+      <!-- =================================================================== -->
+      <section id="view-overview" class="view-panel flex flex-col gap-6">
+        <!-- Top Analytical Status & Header Grid -->
+        <div class="flex flex-col lg:flex-row items-stretch justify-between gap-4">
+          <!-- Lease Identity Card -->
+          <div class="flex-1 bg-panel-surface p-6 rounded-2xl shadow-sm border border-subtle-border relative overflow-hidden flex flex-col justify-between">
+            <div class="absolute right-0 top-0 w-64 h-64 bg-gradient-to-bl from-blue-50 to-transparent pointer-events-none"></div>
+            
+            <div class="flex flex-col gap-2">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 font-mono text-[11px] font-semibold">RESIDENTIAL LEASE</span>
+                <span class="text-slate-300">•</span>
+                <span class="text-emerald-700 font-medium text-xs flex items-center gap-1">
+                  <span class="material-symbols-outlined text-[14px]">verified</span> BBox Coordinated (100% Traceable)
+                </span>
+              </div>
+              <h1 class="text-2xl font-bold text-text-primary tracking-tight" id="overviewDocTitle">
+                4BHK Palm Meadows — Executive Decision Map
+              </h1>
+
+              <!-- Parties Bento Box -->
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+                <div class="bg-canvas-slate p-3 rounded-xl border border-subtle-border flex flex-col">
+                  <span class="font-mono text-[10px] uppercase text-text-muted font-semibold">Lessor (Landlord)</span>
+                  <span class="text-sm font-bold text-text-primary mt-0.5" id="overviewLessorName">Brigade Horizon Estates Pvt Ltd</span>
+                  <span class="text-[11px] text-text-secondary" id="overviewLessorReg">CIN: U70102KA2018PTC118921 • Bengaluru</span>
+                </div>
+                <div class="bg-canvas-slate p-3 rounded-xl border border-subtle-border flex flex-col">
+                  <span class="font-mono text-[10px] uppercase text-text-muted font-semibold">Lessee (Tenants)</span>
+                  <span class="text-sm font-bold text-text-primary mt-0.5" id="overviewLesseeName">Arjun &amp; Priya Sharma</span>
+                  <span class="text-[11px] text-text-secondary" id="overviewLesseeType">Joint Tenancy Verification Passed</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Meta Strip -->
+            <div class="flex flex-wrap items-center gap-4 pt-4 mt-4 border-t border-subtle-border text-xs text-text-secondary">
+              <div class="flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[18px] text-blue-600">calendar_month</span>
+                <span><strong class="text-text-primary" id="overviewTenureText">11 Months</strong> (<span id="overviewDateRange">15 Oct 2026 – 14 Sep 2027</span>)</span>
+              </div>
+              <div class="h-3 w-px bg-slate-300 hidden sm:block"></div>
+              <div class="flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[18px] text-attention-medium">lock_clock</span>
+                <span><strong class="text-text-primary">6-Month (180-Day)</strong> Mandatory Lock-in</span>
+              </div>
+              <div class="h-3 w-px bg-slate-300 hidden sm:block"></div>
+              <div class="flex items-center gap-1.5 text-text-muted font-mono text-[11px]">
+                <span class="material-symbols-outlined text-[16px] text-verified-emerald">pin_drop</span>
+                <span>Sec 1.2 • Page 2 • BBox [48,110,540,165]</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Compact Technical Provenance Engine Chip -->
+          <div class="lg:w-84 bg-slate-900 text-slate-100 p-6 rounded-2xl shadow-sm flex flex-col justify-between relative overflow-hidden">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+              <span class="font-mono text-[11px] uppercase tracking-wider text-slate-400">Contract IR Engine</span>
+              <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            </div>
+            
+            <div class="flex flex-col gap-2 my-4 text-xs">
+              <div class="flex items-center justify-between">
+                <span class="text-slate-400">Extraction Schema</span>
+                <span class="font-mono text-emerald-400 font-semibold">Pydantic v2.8 (Pass)</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-slate-400">Exact BBox Grounding</span>
+                <span class="font-mono text-white font-semibold">100% Traceable</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-slate-400">Flagged Attention Points</span>
+                <span class="font-mono text-rose-300 font-bold" id="engineFlagCount">7 Conditions</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-slate-400">Operational Deadlines</span>
+                <span class="font-mono text-white" id="engineDeadlineCount">6 Milestones</span>
+              </div>
+            </div>
+
+            <div class="bg-slate-800/80 p-2 rounded-lg text-center font-mono text-[11px] text-blue-300 truncate">
+              SHA256: <span id="engineSha">9b2d87e0fa481e39a5d1...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Numerical Vitals Bar -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <!-- Monthly Rent -->
+          <div class="bg-panel-surface p-4 rounded-xl border border-subtle-border shadow-sm flex flex-col gap-1">
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-[11px] uppercase text-text-muted font-semibold">Monthly Rent</span>
+              <span class="material-symbols-outlined text-blue-600 text-[20px]">payments</span>
+            </div>
+            <div class="flex items-baseline gap-1 mt-1">
+              <span class="text-2xl font-bold text-text-primary tracking-tight" id="vitalsRentAmount">₹85,000</span>
+              <span class="text-xs text-text-muted">/mo</span>
+            </div>
+            <div class="flex items-center justify-between mt-2 pt-2 border-t border-slate-100">
+              <span class="text-[11px] text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded font-medium">Due 5th</span>
+              <span class="font-mono text-[11px] text-text-muted">Sec 3.1 • P.4</span>
+            </div>
+          </div>
+
+          <!-- Security Deposit -->
+          <div class="bg-panel-surface p-4 rounded-xl border border-subtle-border shadow-sm flex flex-col gap-1">
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-[11px] uppercase text-text-muted font-semibold">Security Deposit</span>
+              <span class="material-symbols-outlined text-emerald-600 text-[20px]">account_balance</span>
+            </div>
+            <div class="flex items-baseline gap-1 mt-1">
+              <span class="text-2xl font-bold text-text-primary tracking-tight" id="vitalsDepositAmount">₹3,50,000</span>
+            </div>
+            <div class="flex items-center justify-between mt-2 pt-2 border-t border-slate-100">
+              <span class="text-[11px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-medium">Refund in 30d</span>
+              <span class="font-mono text-[11px] text-text-muted">Sec 4.2 • P.6</span>
+            </div>
+          </div>
+
+          <!-- Attention Flags -->
+          <div class="bg-panel-surface p-4 rounded-xl border border-subtle-border shadow-sm flex flex-col gap-1">
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-[11px] uppercase text-text-muted font-semibold">Attention Flags</span>
+              <span class="material-symbols-outlined text-rose-600 text-[20px]">warning</span>
+            </div>
+            <div class="flex items-baseline gap-2 mt-1">
+              <span class="text-2xl font-bold text-rose-600 tracking-tight" id="vitalsFlagCount">7</span>
+              <span class="text-xs text-text-secondary">Detected</span>
+            </div>
+            <div class="flex items-center gap-1.5 mt-2 pt-2 border-t border-slate-100 font-mono text-[11px]">
+              <span class="text-rose-600 font-semibold" id="vitalsHighCount">● 2 High</span>
+              <span class="text-slate-300">•</span>
+              <span class="text-amber-600 font-semibold" id="vitalsMedCount">● 3 Med</span>
+              <span class="text-slate-300">•</span>
+              <span class="text-yellow-600 font-semibold" id="vitalsLowCount">● 2 Low</span>
+            </div>
+          </div>
+
+          <!-- Escalation Cap -->
+          <div class="bg-panel-surface p-4 rounded-xl border border-subtle-border shadow-sm flex flex-col gap-1">
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-[11px] uppercase text-text-muted font-semibold">Escalation Cap</span>
+              <span class="material-symbols-outlined text-blue-600 text-[20px]">trending_up</span>
+            </div>
+            <div class="flex items-baseline gap-1 mt-1">
+              <span class="text-2xl font-bold text-text-primary tracking-tight">5.0%</span>
+              <span class="text-xs text-text-muted">post-11m</span>
+            </div>
+            <div class="flex items-center justify-between mt-2 pt-2 border-t border-slate-100">
+              <span class="text-[11px] text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded font-medium">Risk: Sec 3.4</span>
+              <span class="font-mono text-[11px] text-text-muted">Jumps to 10%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Executive Decision Map (The 3 Non-Negotiable Pillars from PDD §1) -->
+        <div class="flex flex-col gap-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-blue-600 text-[22px]">balance</span>
+              <h2 class="text-lg font-bold text-text-primary tracking-tight">Executive Decision Map</h2>
+            </div>
+            <span class="font-mono text-xs text-text-muted">Grounded Synthesis from 26 Contract Clauses</span>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <!-- Pillar 1: What You Agree To -->
+            <div class="bg-panel-surface p-5 rounded-2xl border border-subtle-border shadow-sm flex flex-col justify-between gap-4">
+              <div class="flex flex-col gap-3">
+                <div class="flex items-center justify-between">
+                  <span class="text-sm font-bold text-text-primary flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-emerald-600 text-[18px]">task_alt</span>
+                    What You Agree To
+                  </span>
+                  <span class="text-[11px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-semibold border border-emerald-100">Baseline</span>
+                </div>
+                <ul class="flex flex-col gap-2.5 text-xs text-text-secondary leading-relaxed">
+                  <li class="flex items-start gap-2">
+                    <span class="text-emerald-600 font-bold mt-0.5">•</span>
+                    <span><strong class="text-text-primary">11-Month Tenancy:</strong> Commencing 15 Oct 2026, expiring automatically on 14 Sep 2027 without mandatory extension.</span>
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-emerald-600 font-bold mt-0.5">•</span>
+                    <span><strong class="text-text-primary">Maintenance Direct Debit:</strong> ₹7,500/mo payable directly to Palm Meadows Society Association by 10th.</span>
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-emerald-600 font-bold mt-0.5">•</span>
+                    <span><strong class="text-text-primary">Standard Rent Escalation:</strong> Capped at 5% for subsequent term if mutual agreement executed 30 days prior.</span>
+                  </li>
+                </ul>
+              </div>
+              <div class="pt-3 bg-canvas-slate p-2.5 rounded-xl border border-subtle-border flex items-center justify-between text-xs">
+                <span class="font-mono text-[11px] text-text-muted">Sec 2.1, 3.2, 5.1</span>
+                <button onclick="jumpToDocument('2', '[40,210,530,340]', 'Sec 2.1')" class="inline-flex items-center gap-1 font-mono text-[11px] text-blue-600 hover:underline font-semibold">
+                  Audit Grounding <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Pillar 2: What Could Hurt You -->
+            <div class="bg-rose-50/50 p-5 rounded-2xl border border-rose-200 shadow-sm flex flex-col justify-between gap-4">
+              <div class="flex flex-col gap-3">
+                <div class="flex items-center justify-between">
+                  <span class="text-sm font-bold text-rose-700 flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-rose-600 text-[18px]">gavel</span>
+                    What Could Hurt You
+                  </span>
+                  <span class="text-[11px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded font-bold border border-rose-200">2 Critical</span>
+                </div>
+                <ul class="flex flex-col gap-2.5 text-xs text-text-secondary leading-relaxed">
+                  <li class="flex items-start gap-2">
+                    <span class="text-rose-600 font-bold mt-0.5">•</span>
+                    <span><strong class="text-text-primary">₹50,000 Early Exit Penalty:</strong> Vacation prior to 6 months triggers immediate ₹50,000 charge plus deposit retention risk.</span>
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-rose-600 font-bold mt-0.5">•</span>
+                    <span><strong class="text-text-primary">24h Landlord Entry Clause:</strong> Landlord reserves right to inspect unit with only 24 hours digital notice.</span>
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-rose-600 font-bold mt-0.5">•</span>
+                    <span><strong class="text-text-primary">Unregistered Renewal Penalty:</strong> Clause 3.4 dictates rent escalates by 10% automatically if lease not re-registered.</span>
+                  </li>
+                </ul>
+              </div>
+              <div class="pt-3 bg-white p-2.5 rounded-xl border border-rose-200 flex items-center justify-between text-xs">
+                <span class="font-mono text-[11px] text-rose-600">Sec 7.2, 9.1, 3.4</span>
+                <button onclick="jumpToDocument('14', '[120,450,520,490]', 'Sec 7.2')" class="inline-flex items-center gap-1 font-mono text-[11px] text-rose-700 hover:underline font-semibold">
+                  Review Penalties <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Pillar 3: What You Must Do -->
+            <div class="bg-panel-surface p-5 rounded-2xl border border-subtle-border shadow-sm flex flex-col justify-between gap-4">
+              <div class="flex flex-col gap-3">
+                <div class="flex items-center justify-between">
+                  <span class="text-sm font-bold text-text-primary flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-attention-medium text-[18px]">notification_important</span>
+                    What You Must Do
+                  </span>
+                  <span class="text-[11px] bg-amber-50 text-amber-700 px-2 py-0.5 rounded font-bold border border-amber-200">Strict Protocol</span>
+                </div>
+                <ul class="flex flex-col gap-2.5 text-xs text-text-secondary leading-relaxed">
+                  <li class="flex items-start gap-2">
+                    <span class="text-amber-500 font-bold mt-0.5">•</span>
+                    <span><strong class="text-text-primary">Registered Post Notice:</strong> Notice must be sent via Registered AD post 60 days ahead; WhatsApp/Email invalid.</span>
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-amber-500 font-bold mt-0.5">•</span>
+                    <span><strong class="text-text-primary">Biannual AC Maintenance:</strong> Must provide certified service receipts every 6 months to avoid HVAC forfeiture charge.</span>
+                  </li>
+                  <li class="flex items-start gap-2">
+                    <span class="text-amber-500 font-bold mt-0.5">•</span>
+                    <span><strong class="text-text-primary">Move-out Deep Clean:</strong> Handover requires licensed deep clean certificate or default ₹25,000 deduction occurs.</span>
+                  </li>
+                </ul>
+              </div>
+              <div class="pt-3 bg-canvas-slate p-2.5 rounded-xl border border-subtle-border flex items-center justify-between text-xs">
+                <span class="font-mono text-[11px] text-text-muted">Sec 7.1, 8.4, 4.5</span>
+                <button onclick="jumpToDocument('13', '[80,310,510,390]', 'Sec 7.1')" class="inline-flex items-center gap-1 font-mono text-[11px] text-blue-600 hover:underline font-semibold">
+                  Examine Protocol <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dual Column: Top Priority Attention Stream & Live Synchronized Viewport -->
+        <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+          
+          <!-- Left 7 Cols: Attention Preview Stream -->
+          <div class="xl:col-span-7 flex flex-col gap-4">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-rose-600 text-[20px]">flag</span>
+                <h3 class="text-base font-bold text-text-primary">Priority Flagged Attention Stream</h3>
+              </div>
+              <button onclick="switchView('attention')" class="text-blue-600 text-xs font-semibold hover:underline flex items-center gap-1">
+                View All Findings <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+              </button>
+            </div>
+
+            <!-- Card 1 -->
+            <div onclick="focusOverviewInspector('F-01')" class="overview-item-card bg-panel-surface p-4 rounded-xl border border-subtle-border shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col gap-2">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 flex items-center gap-1">
+                    <span class="h-1.5 w-1.5 rounded-full bg-rose-600"></span> HIGH ATTENTION
+                  </span>
+                  <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-canvas-slate text-text-secondary">EARLY TERMINATION</span>
+                </div>
+                <span class="font-mono text-xs text-text-muted">Sec 7.2 • Page 14</span>
+              </div>
+              <h4 class="text-sm font-bold text-text-primary">Severe Early Exit Fee &amp; Deposit Forfeiture Risk</h4>
+              <p class="text-xs text-text-secondary leading-relaxed">
+                Vacating prior to completion of the 6-month lock-in obligates tenant to pay a fixed ₹50,000 liquidation penalty in addition to deposit retention.
+              </p>
+              <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+                <span class="font-mono text-[11px] text-text-muted">BBox: [120, 450, 520, 490]</span>
+                <span class="text-blue-600 font-semibold flex items-center gap-1">
+                  Inspect in Canvas <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                </span>
+              </div>
+            </div>
+
+            <!-- Card 2 -->
+            <div onclick="focusOverviewInspector('F-02')" class="overview-item-card bg-panel-surface p-4 rounded-xl border border-subtle-border shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col gap-2">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 flex items-center gap-1">
+                    <span class="h-1.5 w-1.5 rounded-full bg-rose-600"></span> HIGH ATTENTION
+                  </span>
+                  <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-canvas-slate text-text-secondary">RENT ESCALATION</span>
+                </div>
+                <span class="font-mono text-xs text-text-muted">Sec 3.4 • Page 5</span>
+              </div>
+              <h4 class="text-sm font-bold text-text-primary">Automatic 10% Rent Escalation on Holdover / Renewal</h4>
+              <p class="text-xs text-text-secondary leading-relaxed">
+                If the lease continues past 11 months on verbal agreement without fresh sub-registrar registration, escalation automatically jumps to 10%.
+              </p>
+              <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+                <span class="font-mono text-[11px] text-text-muted">BBox: [80, 210, 510, 260]</span>
+                <span class="text-blue-600 font-semibold flex items-center gap-1">
+                  Inspect in Canvas <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                </span>
+              </div>
+            </div>
+
+            <!-- Card 3 -->
+            <div onclick="focusOverviewInspector('F-03')" class="overview-item-card bg-panel-surface p-4 rounded-xl border border-subtle-border shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col gap-2">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1">
+                    <span class="h-1.5 w-1.5 rounded-full bg-amber-500"></span> MEDIUM ATTENTION
+                  </span>
+                  <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-canvas-slate text-text-secondary">NOTICE PROCEDURE</span>
+                </div>
+                <span class="font-mono text-xs text-text-muted">Sec 7.1 • Page 13</span>
+              </div>
+              <h4 class="text-sm font-bold text-text-primary">Strict 60-Day Registered Post Notice Window</h4>
+              <p class="text-xs text-text-secondary leading-relaxed">
+                Either party may terminate after lock-in by providing 60 calendar days notice strictly via physical Indian Post Registered A.D. Email/WhatsApp invalid.
+              </p>
+              <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+                <span class="font-mono text-[11px] text-text-muted">BBox: [80, 310, 510, 390]</span>
+                <span class="text-blue-600 font-semibold flex items-center gap-1">
+                  Inspect in Canvas <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right 5 Cols: Interactive Coordinate Viewport Preview -->
+          <div class="xl:col-span-5 flex flex-col gap-4 sticky top-28">
+            <div class="bg-panel-surface p-5 rounded-2xl border border-subtle-border shadow-sm flex flex-col gap-3">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="material-symbols-outlined text-blue-600 text-[20px]">find_in_page</span>
+                  <span class="text-sm font-bold text-text-primary">Source Grounding Preview</span>
+                </div>
+                <span class="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200" id="overviewActiveCoordLabel">
+                  Sec 7.2 • Page 14
+                </span>
+              </div>
+
+              <!-- Document Frame Mockup with Realistic Typography Texture -->
+              <div class="w-full h-72 bg-slate-100 rounded-xl overflow-hidden relative flex flex-col p-4 select-none border border-slate-200" id="overviewCanvasFrame">
+                <div class="flex items-center justify-between border-b border-slate-300 pb-2 mb-2 font-mono text-[10px] text-slate-500">
+                  <span id="overviewPageHeader">RESIDENTIAL LEASE AGREEMENT — PAGE 14 OF 22</span>
+                  <span>SCALE 100%</span>
+                </div>
+
+                <!-- Fake Legal Typography Texture Top -->
+                <div class="flex flex-col gap-1.5 opacity-40">
+                  <div class="h-2 w-5/6 bg-slate-400 rounded"></div>
+                  <div class="h-2 w-full bg-slate-400 rounded"></div>
+                  <div class="h-2 w-3/4 bg-slate-400 rounded"></div>
+                </div>
+
+                <!-- Grounded Bounding Box Target -->
+                <div id="overviewBboxHighlight" class="my-3 p-3 bg-rose-500/10 rounded-lg transition-all duration-300 relative border border-dashed border-rose-500">
+                  <div class="flex items-center justify-between mb-1.5">
+                    <span class="font-mono text-[11px] text-rose-700 font-bold" id="overviewClauseTitle">CLAUSE 7.2 — EARLY TERMINATION FEE</span>
+                    <span class="font-mono text-[10px] bg-rose-600 text-white px-1.5 py-0.2 rounded" id="overviewBboxCoords">[120, 450, 520, 490]</span>
+                  </div>
+                  <p class="text-xs text-text-primary font-serif leading-relaxed italic" id="overviewClauseQuote">
+                    "In the event the Lessee terminates this Agreement prior to the expiration of the initial Six (6) months lock-in period, the Lessee shall incur a liquidated damages fee of ₹50,000..."
+                  </p>
+                </div>
+
+                <!-- Fake Legal Typography Texture Bottom -->
+                <div class="flex flex-col gap-1.5 opacity-40">
+                  <div class="h-2 w-full bg-slate-400 rounded"></div>
+                  <div class="h-2 w-4/5 bg-slate-400 rounded"></div>
+                  <div class="h-2 w-2/3 bg-slate-400 rounded"></div>
+                </div>
+
+                <div class="absolute bottom-2 right-2 bg-slate-900/90 text-white px-2 py-0.5 rounded text-[10px] font-mono">
+                  Coordinates Verified • Grounding 100%
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between pt-2">
+                <span class="text-xs text-text-muted">Click any finding above to sync canvas</span>
+                <button onclick="jumpToDocument('14', '[120,450,520,490]', 'Sec 7.2')" class="text-xs font-semibold text-blue-600 hover:underline flex items-center gap-1">
+                  Open Full Dual-Pane Viewer <span class="material-symbols-outlined text-[14px]">arrow_outward</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =================================================================== -->
+      <!-- VIEW 2: ATTENTION -->
+      <!-- =================================================================== -->
+      <section id="view-attention" class="view-panel hidden flex flex-col gap-6">
+        <!-- Filter and Search Ribbon -->
+        <div class="bg-panel-surface p-4 rounded-2xl border border-subtle-border shadow-sm flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+          <!-- Severity Filter Chips -->
+          <div class="flex items-center flex-wrap gap-2">
+            <button onclick="filterAttention('all')" data-att-filter="all" class="att-filter-chip active flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-white shadow-sm transition-all">
+              <span>All Findings</span>
+              <span class="px-1.5 py-0.2 rounded-full bg-slate-700 text-white font-mono text-[10px]" id="filterAllCount">7</span>
+            </button>
+            <button onclick="filterAttention('high')" data-att-filter="high" class="att-filter-chip flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-50 text-rose-700 hover:bg-rose-100 transition-all border border-rose-200">
+              <span class="h-2 w-2 rounded-full bg-rose-600"></span>
+              <span>High Attention</span>
+              <span class="px-1.5 py-0.2 rounded-full bg-rose-200 text-rose-800 font-mono text-[10px]" id="filterHighCount">2</span>
+            </button>
+            <button onclick="filterAttention('medium')" data-att-filter="medium" class="att-filter-chip flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-50 text-amber-800 hover:bg-amber-100 transition-all border border-amber-200">
+              <span class="h-2 w-2 rounded-full bg-amber-500"></span>
+              <span>Medium Attention</span>
+              <span class="px-1.5 py-0.2 rounded-full bg-amber-200 text-amber-900 font-mono text-[10px]" id="filterMedCount">3</span>
+            </button>
+            <button onclick="filterAttention('low')" data-att-filter="low" class="att-filter-chip flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-yellow-50 text-yellow-800 hover:bg-yellow-100 transition-all border border-yellow-200">
+              <span class="h-2 w-2 rounded-full bg-yellow-500"></span>
+              <span>Low Attention</span>
+              <span class="px-1.5 py-0.2 rounded-full bg-yellow-200 text-yellow-900 font-mono text-[10px]" id="filterLowCount">2</span>
+            </button>
+          </div>
+
+          <!-- Category Select and Search Bar -->
+          <div class="flex items-center gap-3 flex-wrap">
+            <div class="relative min-w-[200px]">
+              <select id="attentionCategorySelect" onchange="onAttentionCategoryChange(this.value)" class="w-full pl-3 pr-8 py-1.5 rounded-lg bg-canvas-slate text-xs font-medium text-text-primary border border-subtle-border focus:outline-none focus:ring-1 focus:ring-blue-500 appearance-none cursor-pointer">
+                <option value="all">All Categories</option>
+                <option value="Financial Penalty">Financial Penalty / Cost</option>
+                <option value="Renewal & Rent Escalation">Renewal &amp; Rent Escalation</option>
+                <option value="Notice & Procedure">Notice &amp; Procedure</option>
+                <option value="Deductions & Maintenance">Deductions &amp; Maintenance</option>
+                <option value="Inspection & Entry Rights">Inspection &amp; Entry Rights</option>
+              </select>
+              <span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-[16px] text-text-muted pointer-events-none">expand_more</span>
+            </div>
+
+            <div class="relative w-64">
+              <input type="text" id="attentionSearchInput" oninput="onAttentionSearch(this.value)" placeholder="Search clauses, BBox, terms..." class="w-full pl-8 pr-3 py-1.5 rounded-lg bg-canvas-slate text-xs text-text-primary border border-subtle-border placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-blue-500" />
+              <span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-[16px] text-text-muted">search</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Split-Screen Review Engine: Left Cards Stream vs Right Deep Inspector Drawer -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          
+          <!-- LEFT 5 COLS: Ranked Findings List -->
+          <div class="lg:col-span-5 flex flex-col gap-3">
+            <div class="flex items-center justify-between px-1 text-xs">
+              <span class="font-bold text-text-primary" id="attentionListHeader">Ranked Attention Stream (7)</span>
+              <span class="font-mono text-text-muted text-[11px] uppercase">Ranked by Exposure Risk</span>
+            </div>
+            
+            <div class="flex flex-col gap-3" id="attentionCardsContainer">
+              <!-- Dynamically populated from contract-ir.js -->
+            </div>
+          </div>
+
+          <!-- RIGHT 7 COLS: Deep Finding Inspector Panel (Sticky) -->
+          <div class="lg:col-span-7 sticky top-28 flex flex-col gap-4">
+            <div class="bg-panel-surface rounded-2xl border border-subtle-border shadow-md p-6 flex flex-col gap-6" id="inspectorPanel">
+              
+              <!-- Inspector Header -->
+              <div class="flex flex-col gap-3 pb-5 border-b border-subtle-border">
+                <div class="flex items-center justify-between flex-wrap gap-2">
+                  <div class="flex items-center gap-2">
+                    <span id="inspBadge" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-rose-50 text-rose-700 border border-rose-200 text-xs font-bold font-mono">
+                      <span class="h-2 w-2 rounded-full bg-rose-600"></span> High Attention Term
+                    </span>
+                    <span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono text-[11px] font-semibold">
+                      Deterministic Match (100%)
+                    </span>
+                  </div>
+                  <div class="flex items-center gap-1 font-mono text-xs text-text-muted">
+                    <span>CANONICAL:</span>
+                    <span class="bg-slate-100 text-text-primary px-2 py-0.5 rounded font-bold" id="inspCanonical">#SRC-07214</span>
+                  </div>
+                </div>
+
+                <h2 class="text-xl font-bold text-text-primary tracking-tight" id="inspTitle">
+                  Early Termination Penalty &amp; Lock-in Clause
+                </h2>
+
+                <div class="flex items-center gap-4 text-xs text-text-secondary flex-wrap">
+                  <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[15px] text-text-muted">category</span> <span id="inspCategory">Financial Penalty</span></span>
+                  <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[15px] text-text-muted">pin_drop</span> <span id="inspLocation">Section 7.2 • Page 14</span></span>
+                  <span class="flex items-center gap-1 font-mono text-blue-600"><span class="material-symbols-outlined text-[15px] text-text-muted">crop_free</span> <span id="inspBBox">BBox [120, 450, 520, 490]</span></span>
+                </div>
+
+                <!-- Analytical Attention Rationale (Why Flagged) -->
+                <div class="p-3 rounded-xl bg-canvas-slate border border-subtle-border flex items-start gap-2.5">
+                  <span class="material-symbols-outlined text-rose-600 text-[20px] shrink-0 mt-0.5">info</span>
+                  <div class="flex flex-col gap-0.5">
+                    <span class="font-mono text-[10px] uppercase text-text-muted font-bold tracking-wider">Attention Rationale</span>
+                    <p class="text-xs font-medium text-text-primary" id="inspFlagReason">
+                      Why flagged: Large financial consequence and lock-in restriction with asymmetrical landlord withholding terms.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Section 1: Grounded Contract Snippet -->
+              <div class="flex flex-col gap-2">
+                <div class="flex items-center justify-between text-xs">
+                  <span class="font-mono text-[11px] uppercase tracking-wider text-text-muted font-semibold flex items-center gap-1">
+                    <span class="material-symbols-outlined text-[15px]">menu_book</span> Grounded Contract Clause Snippet
+                  </span>
+                  <span class="font-mono text-[11px] text-text-muted">OCR Verbatim Engine</span>
+                </div>
+                <div class="p-4 rounded-xl bg-canvas-slate border border-subtle-border relative">
+                  <div class="font-serif text-sm leading-relaxed text-text-primary" id="inspVerbatimQuote">
+                    "Tenant shall be liable to pay liquidated damages of <mark class="bg-rose-100 text-rose-800 font-semibold px-1 rounded">₹50,000/- in the event of vacation prior to 180 days</mark> from the Commencement Date. In addition, the Landlord retains the unqualified entitlement to <mark class="bg-rose-100 text-rose-800 font-semibold px-1 rounded">withhold the entirety of the Security Deposit</mark> until such time as a substitute tenancy is executed."
+                  </div>
+                  <div class="mt-3 pt-2 border-t border-slate-200 flex items-center justify-between text-xs text-text-muted font-mono">
+                    <span id="inspSnippetFoot">Extracted Page 14 • Paragraph 3</span>
+                    <button onclick="copyInspText()" class="text-blue-600 hover:underline flex items-center gap-1">
+                      <span class="material-symbols-outlined text-[14px]">content_copy</span> Copy Raw Text
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Section 2: Objective Operational Implications -->
+              <div class="flex flex-col gap-2">
+                <span class="font-mono text-[11px] uppercase tracking-wider text-text-muted font-semibold flex items-center gap-1">
+                  <span class="material-symbols-outlined text-[15px]">psychology</span> Objective Operational Implications
+                </span>
+                <div class="p-4 rounded-xl bg-slate-50 border border-subtle-border flex flex-col gap-2 text-xs">
+                  <p class="text-text-primary leading-relaxed font-medium" id="inspMattersText">
+                    You are legally committing to a mandatory 6-month minimum occupancy. If your job relocates or you must leave for unforeseen reasons during these first 180 days, you will forfeit ₹50,000 cash.
+                  </p>
+                  <ul class="flex flex-col gap-1.5 text-text-secondary list-disc pl-4 mt-1" id="inspBulletsList">
+                    <li>Immediate monetary forfeiture of ₹50,000 upon early vacation.</li>
+                    <li>Deposit refund timeline becomes contingent on third-party tenant acquisition.</li>
+                    <li>Notice period cannot offset or substitute for the liquidated cash fee.</li>
+                  </ul>
+                </div>
+              </div>
+
+              <!-- Section 3: Ambiguity Diagnostic Indicator -->
+              <div id="inspAmbiguityBox" class="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2.5">
+                  <span class="material-symbols-outlined text-emerald-600 text-[22px]" id="inspAmbIcon">verified</span>
+                  <div>
+                    <div class="font-mono text-[10px] text-emerald-800 font-bold uppercase tracking-wider" id="inspAmbHeader">Ambiguity Diagnostic</div>
+                    <div class="text-xs text-text-primary" id="inspAmbText">No ambiguity detected in calculation trigger or monetary assignment.</div>
+                  </div>
+                </div>
+                <span class="px-2 py-0.5 rounded font-mono text-[11px] font-bold bg-white text-emerald-700 shadow-sm" id="inspAmbStatus">PASS</span>
+              </div>
+
+              <!-- Section 4: Actions Bar -->
+              <div class="pt-2 flex items-center justify-between flex-wrap gap-3">
+                <div class="flex items-center gap-2">
+                  <button id="inspJumpBtn" onclick="onInspJumpClick()" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition-all">
+                    <span class="material-symbols-outlined text-[16px]">find_in_page</span>
+                    <span id="inspJumpLabel">View in Document (Jump to Page 14)</span>
+                  </button>
+                  <button onclick="copyInspCitation()" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-canvas-slate hover:bg-slate-200 text-text-primary text-xs font-medium border border-subtle-border transition-all">
+                    <span class="material-symbols-outlined text-[16px]">share</span>
+                    <span>Copy Citation</span>
+                  </button>
+                </div>
+                <button onclick="alert('Item flagged for negotiation checklist export!')" class="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold border border-rose-200 transition-all">
+                  <span class="material-symbols-outlined text-[16px]">flag</span>
+                  <span>Flag for Negotiation</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =================================================================== -->
+      <!-- VIEW 3: MONEY -->
+      <!-- =================================================================== -->
+      <section id="view-money" class="view-panel hidden flex flex-col gap-6">
+        <!-- Top Financial Summary Card -->
+        <div class="bg-panel-surface p-6 rounded-2xl border border-subtle-border shadow-sm flex flex-col gap-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-subtle-border">
+            <div class="flex flex-col gap-0.5">
+              <span class="font-mono text-[11px] uppercase tracking-wider text-text-muted font-bold">Total Contractual Exposure</span>
+              <h2 class="text-2xl font-bold text-text-primary tracking-tight">Sourced Financial Exposure Digest</h2>
+              <p class="text-xs text-text-secondary">Every single currency amount, frequency, and penalty is deterministically linked to a verified clause.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="px-2.5 py-1 rounded-md bg-canvas-slate border border-subtle-border font-mono text-xs font-bold text-text-primary">INR (₹)</span>
+              <button onclick="alert('Cashflow schedule exported!')" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition-all flex items-center gap-1">
+                <span class="material-symbols-outlined text-[16px]">download</span>
+                <span>Download Schedule</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 3 Financial Exposure Pillars Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- Monthly Commitment -->
+            <div class="p-4 rounded-xl bg-canvas-slate border border-subtle-border flex flex-col justify-between">
+              <div class="flex flex-col gap-1">
+                <div class="flex items-center justify-between">
+                  <span class="font-mono text-[10px] uppercase text-text-muted font-bold">Monthly Recurring Fixed</span>
+                  <span class="material-symbols-outlined text-blue-600 text-[18px]">calendar_today</span>
+                </div>
+                <span class="text-3xl font-bold text-text-primary tracking-tight mt-1" id="moneyMonthlyTotal">₹92,500</span>
+                <span class="text-xs text-text-secondary mt-1">₹85,000 Base Rent + ₹7,500 Society Maintenance</span>
+              </div>
+              <div class="mt-4 pt-2 border-t border-slate-200 flex items-center justify-between text-xs">
+                <span class="text-text-muted">11-month fixed sum</span>
+                <span class="font-mono font-bold text-text-primary">₹10,17,500</span>
+              </div>
+            </div>
+
+            <!-- Upfront Capital Required -->
+            <div class="p-4 rounded-xl bg-canvas-slate border border-subtle-border flex flex-col justify-between">
+              <div class="flex flex-col gap-1">
+                <div class="flex items-center justify-between">
+                  <span class="font-mono text-[10px] uppercase text-text-muted font-bold">Total Upfront Capital</span>
+                  <span class="material-symbols-outlined text-emerald-600 text-[18px]">account_balance_wallet</span>
+                </div>
+                <span class="text-3xl font-bold text-blue-700 tracking-tight mt-1" id="moneyUpfrontTotal">₹4,35,000</span>
+                <span class="text-xs text-text-secondary mt-1">₹3,50,000 Security Deposit + ₹85,000 Month 1 Advance</span>
+              </div>
+              <div class="mt-4 pt-2 border-t border-slate-200 flex items-center justify-between text-xs">
+                <span class="text-text-muted">Refundable portion</span>
+                <span class="font-mono font-bold text-emerald-700">₹3,25,000 (net)</span>
+              </div>
+            </div>
+
+            <!-- Conditional Latent Exposure -->
+            <div class="p-4 rounded-xl bg-rose-50/60 border border-rose-200 flex flex-col justify-between">
+              <div class="flex flex-col gap-1">
+                <div class="flex items-center justify-between">
+                  <span class="font-mono text-[10px] uppercase text-rose-800 font-bold">Max Conditional Liabilities</span>
+                  <span class="material-symbols-outlined text-rose-600 text-[18px]">warning</span>
+                </div>
+                <span class="text-3xl font-bold text-rose-700 tracking-tight mt-1">₹90,000</span>
+                <span class="text-xs text-rose-900 mt-1">₹50,000 Early Exit + ₹25,000 Painting + ₹15,000 BESCOM</span>
+              </div>
+              <div class="mt-4 pt-2 border-t border-rose-200 flex items-center justify-between text-xs">
+                <span class="text-rose-800">Late payment fee</span>
+                <span class="font-mono font-bold text-rose-700">₹500 / day</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Detailed Itemized Financial Schedule Table -->
+        <div class="bg-panel-surface rounded-2xl border border-subtle-border shadow-sm overflow-hidden">
+          <div class="px-6 py-4 border-b border-subtle-border flex items-center justify-between">
+            <h3 class="text-base font-bold text-text-primary">Itemized Financial Provisions &amp; Provenance</h3>
+            <span class="font-mono text-xs text-text-muted">8 Financial Leaf Nodes Grounded</span>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-canvas-slate text-text-muted font-mono uppercase text-[11px] border-b border-subtle-border">
+                <tr>
+                  <th class="px-6 py-3">Financial Item</th>
+                  <th class="px-4 py-3">Amount</th>
+                  <th class="px-4 py-3">Frequency</th>
+                  <th class="px-6 py-3">Trigger / Condition</th>
+                  <th class="px-4 py-3">Canonical Source</th>
+                  <th class="px-4 py-3 text-right">Audit Jump</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-subtle-border" id="moneyTableBody">
+                <!-- Dynamically populated from contract-ir.js -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Escalation & Holdover Interactive Simulator -->
+        <div class="bg-panel-surface p-6 rounded-2xl border border-subtle-border shadow-sm flex flex-col gap-4">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-blue-600 text-[20px]">trending_up</span>
+            <h3 class="text-base font-bold text-text-primary">Tenure Escalation Comparison (Clause 3.4 Simulation)</h3>
+          </div>
+          <p class="text-xs text-text-secondary leading-relaxed">
+            The lease contract dictates two mutually exclusive escalation paths post-11 months. Compare your monthly rent commitment under mutual registered renewal versus holdover default.
+          </p>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+            <div class="p-4 rounded-xl bg-canvas-slate border border-subtle-border flex flex-col gap-2">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-sm text-text-primary">Scenario A: Timely Mutual Renewal (5% Cap)</span>
+                <span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Recommended</span>
+              </div>
+              <p class="text-xs text-text-secondary">Executed with Landlord at least 30 days prior to 14 Sep 2027.</p>
+              <div class="flex items-baseline gap-2 mt-2">
+                <span class="text-2xl font-bold text-text-primary">₹89,250</span>
+                <span class="text-xs text-text-muted">/ month (+₹4,250)</span>
+              </div>
+              <span class="font-mono text-[11px] text-text-muted">Sec 3.2 • Page 4</span>
+            </div>
+
+            <div class="p-4 rounded-xl bg-rose-50/60 border border-rose-200 flex flex-col gap-2">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-sm text-rose-800">Scenario B: Unregistered Holdover (10% Penalty)</span>
+                <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-100 text-rose-700 border border-rose-200">Penalty Rate</span>
+              </div>
+              <p class="text-xs text-rose-900">Occurs automatically if premise is occupied without registered deed execution.</p>
+              <div class="flex items-baseline gap-2 mt-2">
+                <span class="text-2xl font-bold text-rose-700">₹93,500</span>
+                <span class="text-xs text-rose-800">/ month (+₹8,500)</span>
+              </div>
+              <span class="font-mono text-[11px] text-rose-700">Sec 3.4 • Page 5</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =================================================================== -->
+      <!-- VIEW 4: TIMELINE -->
+      <!-- =================================================================== -->
+      <section id="view-timeline" class="view-panel hidden flex flex-col gap-6">
+        <!-- Top Horizon Tracker Header -->
+        <div class="bg-panel-surface p-6 rounded-2xl border border-subtle-border shadow-sm flex flex-col gap-4">
+          <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div class="flex flex-col gap-1">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="px-2 py-0.5 rounded bg-canvas-slate text-text-primary border border-subtle-border font-mono text-[11px] uppercase font-bold">11-MONTH HORIZON</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono text-[11px] flex items-center gap-1">
+                  <span class="material-symbols-outlined text-[13px]">verified</span> 6 Sourced Milestones Grounded
+                </span>
+              </div>
+              <h2 class="text-2xl font-bold text-text-primary tracking-tight">Timeline &amp; Operational Legal Deadlines</h2>
+              <p class="text-xs text-text-secondary">Chronological sequence of notice deadlines, grace periods, and forfeiture milestones with direct source grounding.</p>
+            </div>
+            
+            <button onclick="downloadCalendarIcs()" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-sm transition-all shrink-0">
+              <span class="material-symbols-outlined text-[16px]">event_available</span>
+              <span>Sync All to Calendar (.ics)</span>
+            </button>
+          </div>
+
+          <!-- Visual Horizontal Horizon Track Diagram -->
+          <div class="pt-6 pb-2 overflow-x-auto w-full">
+            <div class="min-w-[680px] relative px-4">
+              <!-- Baseline Track -->
+              <div class="h-2 w-full bg-slate-200 rounded-full relative">
+                <!-- Lock-in visual progress highlight -->
+                <div class="absolute left-0 top-0 h-2 bg-gradient-to-r from-blue-600 via-amber-500 to-rose-500 rounded-full" style="width: 54.5%;"></div>
+              </div>
+
+              <!-- Nodes Row -->
+              <div class="relative w-full flex justify-between -mt-4">
+                <!-- Node 1 -->
+                <button onclick="focusTimelineMilestone('DL-01')" class="group flex flex-col items-center focus:outline-none text-left">
+                  <span class="h-6 w-6 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center ring-4 ring-white group-hover:scale-125 transition-transform shadow-md">
+                    <span class="h-2 w-2 rounded-full bg-rose-600"></span>
+                  </span>
+                  <span class="mt-2 font-mono text-xs text-text-primary font-bold">D-0</span>
+                  <span class="text-[11px] text-text-muted whitespace-nowrap">15 Oct '26</span>
+                </button>
+                <!-- Node 2 (Recurring) -->
+                <button onclick="focusTimelineMilestone('DL-02')" class="group flex flex-col items-center focus:outline-none text-left">
+                  <span class="h-6 w-6 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center ring-4 ring-white group-hover:scale-125 transition-transform shadow-md">
+                    <span class="material-symbols-outlined text-[13px]">repeat</span>
+                  </span>
+                  <span class="mt-2 font-mono text-xs text-amber-800 font-bold">5th Mthly</span>
+                  <span class="text-[11px] text-text-muted whitespace-nowrap">Rent Window</span>
+                </button>
+                <!-- Node 3 -->
+                <button onclick="focusTimelineMilestone('DL-03')" class="group flex flex-col items-center focus:outline-none text-left">
+                  <span class="h-6 w-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center ring-4 ring-white group-hover:scale-125 transition-transform shadow-md">
+                    <span class="h-2 w-2 rounded-full bg-blue-600"></span>
+                  </span>
+                  <span class="mt-2 font-mono text-xs text-text-primary font-bold">D-180</span>
+                  <span class="text-[11px] text-text-muted whitespace-nowrap">14 Apr '27</span>
+                </button>
+                <!-- Node 4 -->
+                <button onclick="focusTimelineMilestone('DL-04')" class="group flex flex-col items-center focus:outline-none text-left">
+                  <span class="h-6 w-6 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center ring-4 ring-white group-hover:scale-125 transition-transform shadow-md">
+                    <span class="h-2 w-2 rounded-full bg-rose-600"></span>
+                  </span>
+                  <span class="mt-2 font-mono text-xs text-text-primary font-bold">D-275</span>
+                  <span class="text-[11px] text-text-muted whitespace-nowrap">16 Jul '27</span>
+                </button>
+                <!-- Node 5 -->
+                <button onclick="focusTimelineMilestone('DL-05')" class="group flex flex-col items-center focus:outline-none text-left">
+                  <span class="h-6 w-6 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center ring-4 ring-white group-hover:scale-125 transition-transform shadow-md">
+                    <span class="h-2 w-2 rounded-full bg-amber-600"></span>
+                  </span>
+                  <span class="mt-2 font-mono text-xs text-text-primary font-bold">D-305</span>
+                  <span class="text-[11px] text-text-muted whitespace-nowrap">15 Aug '27</span>
+                </button>
+                <!-- Node 6 -->
+                <button onclick="focusTimelineMilestone('DL-06')" class="group flex flex-col items-center focus:outline-none text-left">
+                  <span class="h-6 w-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center ring-4 ring-white group-hover:scale-125 transition-transform shadow-md">
+                    <span class="material-symbols-outlined text-[13px]">flag</span>
+                  </span>
+                  <span class="mt-2 font-mono text-xs text-text-primary font-bold">D-335</span>
+                  <span class="text-[11px] text-text-muted whitespace-nowrap">14 Sep '27</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filter Pill Controls for Milestones -->
+        <div class="flex items-center justify-between gap-4 flex-wrap bg-canvas-slate p-3 rounded-2xl border border-subtle-border">
+          <div class="flex items-center gap-2 flex-wrap">
+            <button onclick="filterTimeline('all')" data-tl-filter="all" class="tl-chip active px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-white shadow-sm transition-all">
+              All Milestones (6)
+            </button>
+            <button onclick="filterTimeline('payment')" data-tl-filter="payment" class="tl-chip px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-text-secondary border border-subtle-border hover:bg-slate-50 transition-all flex items-center gap-1.5">
+              <span class="h-2 w-2 rounded-full bg-rose-600"></span>
+              Payment Deadlines
+            </button>
+            <button onclick="filterTimeline('notice')" data-tl-filter="notice" class="tl-chip px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-text-secondary border border-subtle-border hover:bg-slate-50 transition-all flex items-center gap-1.5">
+              <span class="h-2 w-2 rounded-full bg-amber-500"></span>
+              Notice Requirements
+            </button>
+            <button onclick="filterTimeline('critical')" data-tl-filter="critical" class="tl-chip px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-text-secondary border border-subtle-border hover:bg-slate-50 transition-all flex items-center gap-1.5">
+              <span class="h-2 w-2 rounded-full bg-blue-600"></span>
+              Critical Expirations
+            </button>
+          </div>
+          <span class="font-mono text-xs text-text-muted">Click any milestone card to inspect in document</span>
+        </div>
+
+        <!-- Chronological Milestone Cards Stack -->
+        <div class="flex flex-col gap-4" id="timelineCardsContainer">
+          <!-- Dynamically populated from contract-ir.js -->
+        </div>
+      </section>
+
+      <!-- =================================================================== -->
+      <!-- VIEW 5: DOCUMENT (BIDIRECTIONAL SYNCHRONIZED VIEWER) -->
+      <!-- =================================================================== -->
+      <section id="view-document" class="view-panel hidden flex flex-col gap-4">
+        <!-- Document Viewer Toolbar -->
+        <div class="bg-panel-surface p-3.5 rounded-2xl border border-subtle-border shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <!-- Page Navigator -->
+          <div class="flex items-center gap-3">
+            <div class="flex items-center gap-1">
+              <button onclick="changeDocPage(-1)" class="p-1.5 rounded-lg bg-canvas-slate hover:bg-slate-200 text-text-primary border border-subtle-border transition-all">
+                <span class="material-symbols-outlined text-[18px]">chevron_left</span>
+              </button>
+              <div class="flex items-center gap-1 text-xs font-medium px-2">
+                <span>Page</span>
+                <input type="number" id="docCurrentPageInput" onchange="setDocPage(parseInt(this.value))" value="14" min="1" max="22" class="w-12 text-center py-1 rounded bg-canvas-slate border border-subtle-border font-mono text-xs" />
+                <span class="text-text-muted">of <span id="docTotalPages">22</span></span>
+              </div>
+              <button onclick="changeDocPage(1)" class="p-1.5 rounded-lg bg-canvas-slate hover:bg-slate-200 text-text-primary border border-subtle-border transition-all">
+                <span class="material-symbols-outlined text-[18px]">chevron_right</span>
+              </button>
+            </div>
+
+            <div class="h-4 w-px bg-slate-300 hidden sm:block"></div>
+
+            <span class="text-xs font-medium text-text-secondary truncate max-w-[280px]" id="docToolbarTitle">
+              Residential Lease Agreement — 4BHK Palm Meadows.pdf
+            </span>
+          </div>
+
+          <!-- Zoom & Display Controls -->
+          <div class="flex items-center gap-2 text-xs">
+            <span class="font-mono text-text-muted text-[11px] hidden sm:inline">Active BBox:</span>
+            <span class="px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 font-mono text-xs font-semibold" id="docToolbarBBoxLabel">
+              [120, 450, 520, 490]
+            </span>
+            <button onclick="resetDocZoom()" class="p-1.5 rounded-lg bg-canvas-slate hover:bg-slate-200 text-text-primary border border-subtle-border">
+              <span class="material-symbols-outlined text-[18px]">fit_screen</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Dual-Pane Document Canvas & Synchronized Explanation Drawer -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          
+          <!-- LEFT 8 COLS: Authentic Document Viewer Surface -->
+          <div class="lg:col-span-8 bg-slate-200/90 p-4 sm:p-6 rounded-2xl border border-slate-300 shadow-inner flex flex-col items-center overflow-x-auto min-h-[750px]" id="documentViewport">
+            
+            <!-- White PDF Page Paper Sheet (Standard A4 Proportions) -->
+            <div id="pdfPaperSheet" class="w-full max-w-[760px] bg-white rounded-lg shadow-2xl p-8 sm:p-12 relative flex flex-col justify-between min-h-[960px] text-text-primary border border-slate-300">
+              
+              <!-- Running Header -->
+              <div class="flex items-center justify-between pb-4 border-b border-slate-200 font-mono text-[10px] text-slate-400">
+                <span id="sheetHeaderTitle">RESIDENTIAL LEASE AGREEMENT — UNIT VILLA 42</span>
+                <span id="sheetHeaderPage">PAGE 14 OF 22</span>
+              </div>
+
+              <!-- Page Content Body (Dynamically populated based on active page) -->
+              <div class="flex-1 py-6 flex flex-col gap-4 font-serif text-[13.5px] leading-relaxed text-slate-800" id="sheetContentBody">
+                <!-- Dynamically populated page clauses & paragraphs -->
+              </div>
+
+              <!-- Running Footer -->
+              <div class="pt-4 border-t border-slate-200 flex items-center justify-between font-mono text-[10px] text-slate-400">
+                <span>LESSOR: [BHE-PL] _________</span>
+                <span>LESSEE: [AS &amp; PS] _________</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- RIGHT 4 COLS: Synchronized Clause & Evidence Explanation Panel (Sticky) -->
+          <div class="lg:col-span-4 sticky top-28 flex flex-col gap-4">
+            <div class="bg-panel-surface p-6 rounded-2xl border border-subtle-border shadow-md flex flex-col gap-4" id="docSyncPanel">
+              <div class="flex items-center justify-between pb-3 border-b border-subtle-border">
+                <span class="font-mono text-[11px] uppercase tracking-wider text-text-muted font-bold">Synchronized Inspector</span>
+                <span class="px-2 py-0.5 rounded font-mono text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                  <span class="material-symbols-outlined text-[13px]">check</span> Linked
+                </span>
+              </div>
+
+              <div class="flex flex-col gap-1">
+                <span class="font-mono text-xs text-blue-600 font-bold" id="syncSectionLabel">Section 7.2</span>
+                <h3 class="text-base font-bold text-text-primary tracking-tight" id="syncTitle">Early Termination Liquidated Damages</h3>
+                <span class="text-xs text-text-muted" id="syncCategory">Category: Financial Penalty</span>
+              </div>
+
+              <!-- Plain-English Explanation -->
+              <div class="p-3.5 bg-canvas-slate rounded-xl border border-subtle-border flex flex-col gap-1">
+                <span class="font-mono text-[10px] uppercase text-text-muted font-bold">Plain-English Meaning</span>
+                <p class="text-xs text-text-secondary leading-relaxed" id="syncExplanation">
+                  If tenant leaves before 6 months (180 days), a non-negotiable fee of ₹50,000 applies and the security deposit can be withheld until a substitute tenant is found.
+                </p>
+              </div>
+
+              <!-- Grounded Substring Reference -->
+              <div class="p-3.5 bg-rose-50/60 rounded-xl border border-rose-200 flex flex-col gap-1">
+                <span class="font-mono text-[10px] uppercase text-rose-800 font-bold">Exact BBox Extract</span>
+                <p class="font-serif italic text-xs text-slate-800 leading-normal" id="syncExactText">
+                  "...shall pay a liquidated damages fee of INR 50,000/- and the Lessor retains the right to withhold the entirety of the Security Deposit..."
+                </p>
+                <span class="font-mono text-[10px] text-rose-700 mt-1" id="syncCoordinates">[120, 450, 520, 490] • Page 14</span>
+              </div>
+
+              <!-- Action buttons -->
+              <div class="pt-2 flex flex-col gap-2">
+                <button onclick="switchView('attention')" class="w-full py-2 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition-all flex items-center justify-center gap-1">
+                  <span class="material-symbols-outlined text-[16px]">visibility</span>
+                  <span>View in Attention Dashboard</span>
+                </button>
+                <button onclick="copyActiveClause()" class="w-full py-2 px-3 rounded-lg bg-canvas-slate hover:bg-slate-200 text-text-primary text-xs font-medium border border-subtle-border transition-all flex items-center justify-center gap-1">
+                  <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                  <span>Copy Clause Text</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 1: UPLOAD NEW LEASE SIMULATION -->
+  <!-- ========================================================================= -->
+  <div id="uploadModal" class="fixed inset-0 z-50 modal-backdrop bg-slate-900/60 hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-subtle-border p-6 flex flex-col gap-4">
+      <div class="flex items-center justify-between pb-3 border-b border-subtle-border">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-blue-600 text-[22px]">upload_file</span>
+          <h3 class="text-base font-bold text-text-primary">Upload Residential Lease</h3>
+        </div>
+        <button onclick="closeUploadModal()" class="text-text-muted hover:text-text-primary">
+          <span class="material-symbols-outlined text-[20px]">close</span>
+        </button>
+      </div>
+
+      <!-- Drag & Drop Zone -->
+      <div class="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-xl p-6 flex flex-col items-center justify-center gap-2 cursor-pointer bg-canvas-slate transition-all text-center" onclick="triggerSimulatedUpload()">
+        <span class="material-symbols-outlined text-4xl text-blue-600">cloud_upload</span>
+        <span class="text-sm font-semibold text-text-primary">Drag and drop your lease PDF here</span>
+        <span class="text-xs text-text-muted">Accepts PDF up to 200 pages / 50 MB (Digital or Scanned)</span>
+        <span class="px-3 py-1 rounded-lg bg-blue-600 text-white text-xs font-semibold mt-2 shadow-sm">Browse Local File</span>
+      </div>
+
+      <!-- Quick Switch to Sample Leases -->
+      <div class="flex flex-col gap-2">
+        <span class="font-mono text-[11px] text-text-muted uppercase font-bold">Or load a pre-parsed sample lease:</span>
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <button onclick="loadSampleLease('doc-palm-meadows-2026')" class="p-2.5 rounded-lg border border-subtle-border hover:border-blue-600 bg-canvas-slate text-left flex flex-col">
+            <span class="font-bold text-text-primary">4BHK Palm Meadows</span>
+            <span class="text-[11px] text-text-muted">22 pages • ₹85k/mo</span>
+          </button>
+          <button onclick="loadSampleLease('doc-koramangala-2026')" class="p-2.5 rounded-lg border border-subtle-border hover:border-blue-600 bg-canvas-slate text-left flex flex-col">
+            <span class="font-bold text-text-primary">Koramangala 4th Block</span>
+            <span class="text-[11px] text-text-muted">16 pages • ₹62k/mo</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Pipeline Processing Progress Box (Shown during simulation) -->
+      <div id="uploadProgressBox" class="hidden flex flex-col gap-3 p-4 bg-slate-900 text-white rounded-xl">
+        <div class="flex items-center justify-between text-xs font-mono">
+          <span id="pipelineStepText">Step 1: Document Ingestion &amp; SHA256 Hashing...</span>
+          <span id="pipelinePercent" class="text-emerald-400">15%</span>
+        </div>
+        <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+          <div id="pipelineBar" class="bg-blue-500 h-full w-[15%] transition-all duration-300"></div>
+        </div>
+        <div class="grid grid-cols-3 gap-1 font-mono text-[10px] text-slate-400">
+          <span>• Layout OCR</span>
+          <span>• Pydantic Schema</span>
+          <span>• Evidence Gate</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 2: EXPORT SUMMARY -->
+  <!-- ========================================================================= -->
+  <div id="exportModal" class="fixed inset-0 z-50 modal-backdrop bg-slate-900/60 hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-subtle-border p-6 flex flex-col gap-4 max-h-[90vh]">
+      <div class="flex items-center justify-between pb-3 border-b border-subtle-border">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-blue-600 text-[22px]">ios_share</span>
+          <h3 class="text-base font-bold text-text-primary">Export Contract Intelligence Summary</h3>
+        </div>
+        <button onclick="closeExportModal()" class="text-text-muted hover:text-text-primary">
+          <span class="material-symbols-outlined text-[20px]">close</span>
+        </button>
+      </div>
+
+      <div class="flex items-center gap-2 border-b border-subtle-border pb-2 text-xs">
+        <button onclick="setExportFormat('markdown')" id="expTabMd" class="px-3 py-1 rounded-lg bg-slate-900 text-white font-semibold">Markdown (.md)</button>
+        <button onclick="setExportFormat('plain')" id="expTabPlain" class="px-3 py-1 rounded-lg text-text-secondary hover:text-text-primary">Plain Text</button>
+        <button onclick="window.print()" class="ml-auto px-3 py-1 rounded-lg bg-blue-600 text-white font-semibold flex items-center gap-1">
+          <span class="material-symbols-outlined text-[15px]">print</span> Print / PDF
+        </button>
+      </div>
+
+      <!-- Preview Textarea -->
+      <textarea id="exportPreviewArea" readonly class="w-full h-72 font-mono text-xs p-4 bg-canvas-slate rounded-xl border border-subtle-border resize-none focus:outline-none"></textarea>
+
+      <div class="flex items-center justify-between pt-2">
+        <span class="text-xs text-text-muted font-mono">100% Traceable Citations Included</span>
+        <button onclick="downloadExportFile()" class="px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold flex items-center gap-1 shadow-sm">
+          <span class="material-symbols-outlined text-[16px]">download</span> Download Summary File
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Load Database and Application Logic -->
+  <script src="contract-ir.js"></script>
+  <script>
+    // =========================================================================
+    // APPLICATION STATE MANAGEMENT
+    // =========================================================================
+    let currentContractId = "doc-palm-meadows-2026";
+    let currentContract = CONTRACT_IR_DATABASE[currentContractId];
+    let activeFindingId = "F-01";
+    let activeFilter = "all";
+    let activeCategory = "all";
+    let activeSearchTerm = "";
+    let docCurrentPage = 14;
+
+    // Initialize application on DOM ready
+    window.addEventListener("DOMContentLoaded", () => {
+      renderContractData();
+    });
+
+    function onContractChange(id) {
+      if (CONTRACT_IR_DATABASE[id]) {
+        currentContractId = id;
+        currentContract = CONTRACT_IR_DATABASE[id];
+        activeFindingId = currentContract.findings[0]?.id || "F-01";
+        renderContractData();
+      }
+    }
+
+    function renderContractData() {
+      // 1. Sidebar & Header Metas
+      document.getElementById("contractSelector").value = currentContractId;
+      document.getElementById("sideFilename").textContent = currentContract.metadata.filename;
+      document.getElementById("sidePageCount").textContent = `${currentContract.metadata.page_count} pages • ${currentContract.metadata.tenure_months} months`;
+      document.getElementById("sideSha").textContent = currentContract.metadata.sha256.substring(0, 10) + "...";
+      document.getElementById("docToolbarTitle").textContent = currentContract.metadata.filename;
+      document.getElementById("docTotalPages").textContent = currentContract.metadata.page_count;
+
+      const highCount = currentContract.findings.filter(f => f.severity_tier === "high").length;
+      const medCount = currentContract.findings.filter(f => f.severity_tier === "medium").length;
+      const lowCount = currentContract.findings.filter(f => f.severity_tier === "low").length;
+      const totalFlags = currentContract.findings.length;
+
+      document.getElementById("sideHighCount").textContent = highCount;
+      document.getElementById("sideMedCount").textContent = medCount;
+      document.getElementById("sideLowCount").textContent = lowCount;
+      document.getElementById("tabAttentionBadge").textContent = totalFlags;
+      document.getElementById("filterAllCount").textContent = totalFlags;
+      document.getElementById("filterHighCount").textContent = highCount;
+      document.getElementById("filterMedCount").textContent = medCount;
+      document.getElementById("filterLowCount").textContent = lowCount;
+
+      // 2. Overview View Elements
+      document.getElementById("overviewDocTitle").textContent = `${currentContract.metadata.title} — Executive Decision Map`;
+      document.getElementById("overviewLessorName").textContent = currentContract.metadata.parties[0]?.name || "N/A";
+      document.getElementById("overviewLessorReg").textContent = `${currentContract.metadata.parties[0]?.reg || ""} • ${currentContract.metadata.parties[0]?.jurisdiction || ""}`;
+      document.getElementById("overviewLesseeName").textContent = currentContract.metadata.parties[1]?.name || "N/A";
+      document.getElementById("overviewLesseeType").textContent = `${currentContract.metadata.parties[1]?.type || "Tenancy"} • KYC Verified`;
+      document.getElementById("overviewTenureText").textContent = `${currentContract.metadata.tenure_months} Months`;
+      document.getElementById("overviewDateRange").textContent = `${currentContract.metadata.effective_date} – ${currentContract.metadata.expiration_date}`;
+      document.getElementById("engineFlagCount").textContent = `${totalFlags} Conditions`;
+      document.getElementById("engineDeadlineCount").textContent = `${currentContract.deadlines.length} Milestones`;
+      document.getElementById("engineSha").textContent = currentContract.metadata.sha256.substring(0, 24) + "...";
+
+      const rentTerm = currentContract.financial_terms.find(ft => ft.label.toLowerCase().includes("rent"));
+      const depositTerm = currentContract.financial_terms.find(ft => ft.label.toLowerCase().includes("deposit"));
+      
+      document.getElementById("vitalsRentAmount").textContent = rentTerm ? `₹${rentTerm.amount.toLocaleString("en-IN")}` : "N/A";
+      document.getElementById("vitalsDepositAmount").textContent = depositTerm ? `₹${depositTerm.amount.toLocaleString("en-IN")}` : "N/A";
+      document.getElementById("vitalsFlagCount").textContent = totalFlags;
+      document.getElementById("vitalsHighCount").textContent = `● ${highCount} High`;
+      document.getElementById("vitalsMedCount").textContent = `● ${medCount} Med`;
+      document.getElementById("vitalsLowCount").textContent = `● ${lowCount} Low`;
+
+      // 3. Render Attention Cards & Inspector
+      renderAttentionList();
+      const initialFinding = currentContract.findings.find(f => f.id === activeFindingId) || currentContract.findings[0];
+      if (initialFinding) {
+        renderInspector(initialFinding);
+      }
+
+      // 4. Render Money View
+      renderMoneyView();
+
+      // 5. Render Timeline View
+      renderTimelineView();
+
+      // 6. Render Document Page
+      renderDocumentSheet(docCurrentPage);
+    }
+
+    // =========================================================================
+    // VIEW SWITCHING ENGINE
+    // =========================================================================
+    function switchView(viewName, filterCategory) {
+      document.querySelectorAll(".view-panel").forEach(panel => {
+        panel.classList.add("hidden");
+      });
+
+      const target = document.getElementById(`view-${viewName}`);
+      if (target) {
+        target.classList.remove("hidden");
+      }
+
+      // Update Nav Tabs Active Classes
+      document.querySelectorAll("#mainTabsNav .tab-btn").forEach(btn => {
+        if (btn.getAttribute("data-view") === viewName) {
+          btn.className = "tab-btn active px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all text-white bg-blue-600 shadow-sm flex items-center gap-1.5";
+        } else {
+          btn.className = "tab-btn px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white hover:bg-slate-700/60 flex items-center gap-1.5";
+        }
+      });
+
+      if (viewName === "attention" && filterCategory) {
+        filterAttention(filterCategory);
+      }
+
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    // =========================================================================
+    // ATTENTION VIEW & INSPECTOR LOGIC
+    // =========================================================================
+    function renderAttentionList() {
+      const container = document.getElementById("attentionCardsContainer");
+      container.innerHTML = "";
+
+      const filtered = currentContract.findings.filter(item => {
+        const matchesTier = (activeFilter === "all" || item.severity_tier === activeFilter);
+        const matchesCategory = (activeCategory === "all" || item.category === activeCategory);
+        const matchesSearch = !activeSearchTerm ||
+          item.title.toLowerCase().includes(activeSearchTerm) ||
+          item.explanation.toLowerCase().includes(activeSearchTerm) ||
+          item.evidence.toLowerCase().includes(activeSearchTerm);
+        return matchesTier && matchesCategory && matchesSearch;
+      });
+
+      document.getElementById("attentionListHeader").textContent = `Ranked Attention Stream (${filtered.length})`;
+
+      filtered.forEach(item => {
+        const source = currentContract.sources[item.source_id];
+        const isHigh = item.severity_tier === "high";
+        const isMed = item.severity_tier === "medium";
+        const isActive = item.id === activeFindingId;
+
+        const card = document.createElement("article");
+        card.className = `finding-card p-4 rounded-xl border transition-all cursor-pointer flex flex-col gap-2 relative overflow-hidden ${
+          isActive 
+            ? "bg-white border-blue-500 shadow-md ring-1 ring-blue-500" 
+            : "bg-white border-subtle-border shadow-sm hover:shadow-md"
+        }`;
+        card.onclick = () => {
+          activeFindingId = item.id;
+          renderAttentionList();
+          renderInspector(item);
+        };
+
+        const tierBadge = isHigh 
+          ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 flex items-center gap-1"><span class="h-1.5 w-1.5 rounded-full bg-rose-600"></span> HIGH ATTENTION</span>`
+          : (isMed 
+              ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 flex items-center gap-1"><span class="h-1.5 w-1.5 rounded-full bg-amber-500"></span> MEDIUM ATTENTION</span>`
+              : `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-yellow-50 text-yellow-800 border border-yellow-200 flex items-center gap-1"><span class="h-1.5 w-1.5 rounded-full bg-yellow-500"></span> LOW ATTENTION</span>`);
+
+        card.innerHTML = `
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2 flex-wrap">
+              ${tierBadge}
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-canvas-slate text-text-secondary">${item.category}</span>
+            </div>
+            <span class="font-mono text-xs text-text-muted">${source ? `${source.section_label} • p.${source.page}` : ""}</span>
+          </div>
+          <h4 class="text-sm font-bold text-text-primary tracking-tight">${item.title}</h4>
+          <p class="text-xs text-text-secondary line-clamp-2 leading-relaxed">${item.explanation}</p>
+          <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+            <span class="font-mono text-[11px] text-emerald-700 flex items-center gap-1 font-medium">
+              <span class="material-symbols-outlined text-[14px]">fact_check</span> 100% Traceable
+            </span>
+            <span class="text-blue-600 font-semibold flex items-center gap-0.5">
+              Inspect <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+            </span>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function renderInspector(item) {
+      const source = currentContract.sources[item.source_id];
+
+      document.getElementById("inspTitle").textContent = item.title;
+      document.getElementById("inspCategory").textContent = item.category;
+      document.getElementById("inspCanonical").textContent = `#${item.source_id}`;
+      document.getElementById("inspLocation").textContent = source ? `${source.section_label} • Page ${source.page}` : "Contract Text";
+      document.getElementById("inspBBox").textContent = source ? `BBox [${source.bbox.join(", ")}]` : "N/A";
+      document.getElementById("inspFlagReason").textContent = `Why flagged: ${item.explanation}`;
+      document.getElementById("inspMattersText").textContent = item.matters;
+      document.getElementById("inspVerbatimQuote").innerHTML = `"${item.evidence}"`;
+      document.getElementById("inspSnippetFoot").textContent = `Extracted Page ${source ? source.page : ""} • ${source ? source.section_label : ""}`;
+      document.getElementById("inspJumpLabel").textContent = `View in Document (Jump to Page ${source ? source.page : ""})`;
+
+      // Attention Badge
+      const badge = document.getElementById("inspBadge");
+      if (item.severity_tier === "high") {
+        badge.className = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-rose-50 text-rose-700 border border-rose-200 text-xs font-bold font-mono";
+        badge.innerHTML = `<span class="h-2 w-2 rounded-full bg-rose-600"></span> High Attention Term`;
+      } else if (item.severity_tier === "medium") {
+        badge.className = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-50 text-amber-800 border border-amber-200 text-xs font-bold font-mono";
+        badge.innerHTML = `<span class="h-2 w-2 rounded-full bg-amber-500"></span> Medium Attention Term`;
+      } else {
+        badge.className = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-yellow-50 text-yellow-800 border border-yellow-200 text-xs font-bold font-mono";
+        badge.innerHTML = `<span class="h-2 w-2 rounded-full bg-yellow-500"></span> Low Attention Term`;
+      }
+
+      // Bullets List
+      const bulletContainer = document.getElementById("inspBulletsList");
+      bulletContainer.innerHTML = "";
+      (item.bullets || []).forEach(b => {
+        const li = document.createElement("li");
+        li.textContent = b;
+        bulletContainer.appendChild(li);
+      });
+
+      // Ambiguity Diagnostic
+      const ambBox = document.getElementById("inspAmbiguityBox");
+      const ambHeader = document.getElementById("inspAmbHeader");
+      const ambText = document.getElementById("inspAmbText");
+      const ambStatus = document.getElementById("inspAmbStatus");
+      const ambIcon = document.getElementById("inspAmbIcon");
+
+      if (item.ambiguity_detected) {
+        ambBox.className = "p-3.5 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between gap-3";
+        ambHeader.className = "font-mono text-[10px] text-amber-900 font-bold uppercase tracking-wider";
+        ambHeader.textContent = "Ambiguity Flag";
+        ambText.textContent = item.ambiguity_note || "⚠ The contract does not clearly specify this term.";
+        ambStatus.className = "px-2 py-0.5 rounded font-mono text-[11px] font-bold bg-white text-amber-800 shadow-sm";
+        ambStatus.textContent = "CLARIFY";
+        ambIcon.textContent = "warning";
+        ambIcon.className = "material-symbols-outlined text-amber-600 text-[22px]";
+      } else {
+        ambBox.className = "p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between gap-3";
+        ambHeader.className = "font-mono text-[10px] text-emerald-800 font-bold uppercase tracking-wider";
+        ambHeader.textContent = "Ambiguity Diagnostic";
+        ambText.textContent = item.ambiguity_note || "No ambiguity detected in calculation trigger or monetary assignment.";
+        ambStatus.className = "px-2 py-0.5 rounded font-mono text-[11px] font-bold bg-white text-emerald-700 shadow-sm";
+        ambStatus.textContent = "PASS";
+        ambIcon.textContent = "verified";
+        ambIcon.className = "material-symbols-outlined text-emerald-600 text-[22px]";
+      }
+    }
+
+    function filterAttention(tier) {
+      activeFilter = tier;
+      document.querySelectorAll(".att-filter-chip").forEach(btn => {
+        if (btn.getAttribute("data-att-filter") === tier) {
+          btn.classList.add("bg-slate-900", "text-white");
+          btn.classList.remove("bg-white", "bg-rose-50", "bg-amber-50", "bg-yellow-50");
+        } else {
+          btn.classList.remove("bg-slate-900", "text-white");
+        }
+      });
+      renderAttentionList();
+    }
+
+    function onAttentionCategoryChange(cat) {
+      activeCategory = cat;
+      renderAttentionList();
+    }
+
+    function onAttentionSearch(val) {
+      activeSearchTerm = val.toLowerCase().trim();
+      renderAttentionList();
+    }
+
+    function onInspJumpClick() {
+      const item = currentContract.findings.find(f => f.id === activeFindingId);
+      if (item && currentContract.sources[item.source_id]) {
+        const source = currentContract.sources[item.source_id];
+        jumpToDocument(source.page, `[${source.bbox.join(",")}]`, source.section_label);
+      }
+    }
+
+    // =========================================================================
+    // MONEY VIEW LOGIC
+    // =========================================================================
+    function renderMoneyView() {
+      const tbody = document.getElementById("moneyTableBody");
+      tbody.innerHTML = "";
+
+      let monthlySum = 0;
+      let upfrontSum = 0;
+
+      currentContract.financial_terms.forEach(ft => {
+        const source = currentContract.sources[ft.source_id];
+        if (ft.frequency === "monthly") monthlySum += ft.amount;
+        if (ft.type === "upfront_capital") upfrontSum += ft.amount;
+
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-slate-50 transition-colors";
+        tr.innerHTML = `
+          <td class="px-6 py-3.5 font-medium text-text-primary">
+            ${ft.label}
+          </td>
+          <td class="px-4 py-3.5 font-mono font-bold text-text-primary">
+            ₹${ft.amount.toLocaleString("en-IN")}
+          </td>
+          <td class="px-4 py-3.5 capitalize text-text-secondary">
+            ${ft.frequency}
+          </td>
+          <td class="px-6 py-3.5 text-text-secondary">
+            ${ft.trigger}
+          </td>
+          <td class="px-4 py-3.5 font-mono text-[11px] text-text-muted">
+            ${source ? `${source.section_label} • Pg ${source.page}` : "N/A"}
+          </td>
+          <td class="px-4 py-3.5 text-right">
+            <button onclick="jumpToDocument('${source ? source.page : 1}', '[${source ? source.bbox.join(",") : ""}]', '${source ? source.section_label : ""}')" class="text-blue-600 hover:underline font-mono text-xs font-semibold inline-flex items-center gap-0.5">
+              <span>Audit</span>
+              <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById("moneyMonthlyTotal").textContent = `₹${monthlySum.toLocaleString("en-IN")}`;
+      document.getElementById("moneyUpfrontTotal").textContent = `₹${upfrontSum.toLocaleString("en-IN")}`;
+    }
+
+    // =========================================================================
+    // TIMELINE VIEW LOGIC & .ICS EXPORT
+    // =========================================================================
+    function renderTimelineView() {
+      const container = document.getElementById("timelineCardsContainer");
+      container.innerHTML = "";
+
+      currentContract.deadlines.forEach(dl => {
+        const source = currentContract.sources[dl.source_id];
+        const card = document.createElement("div");
+        card.className = "milestone-card bg-panel-surface rounded-2xl p-5 border border-subtle-border shadow-sm hover:shadow-md transition-all flex flex-col gap-3";
+        card.setAttribute("data-dl-category", dl.category);
+
+        const isPayment = dl.category === "payment";
+        const isNotice = dl.category === "notice";
+        const icon = isPayment ? "payments" : (isNotice ? "mark_email_unread" : "lock_open");
+        const badgeColor = dl.attention_tier === "high" ? "bg-rose-50 text-rose-700 border-rose-200" : "bg-amber-50 text-amber-800 border-amber-200";
+
+        card.innerHTML = `
+          <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+            <div class="flex items-start gap-3">
+              <div class="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center text-text-primary shrink-0 border border-slate-200">
+                <span class="material-symbols-outlined text-[20px]">${icon}</span>
+              </div>
+              <div class="flex flex-col gap-0.5">
+                <div class="flex items-center gap-2 flex-wrap text-xs">
+                  <span class="font-mono font-bold px-2 py-0.5 rounded bg-slate-100 text-text-primary">${dl.relative_label}</span>
+                  <span class="text-text-muted font-mono">${dl.date}</span>
+                  <span class="px-2 py-0.5 rounded text-[10px] font-bold border ${badgeColor} uppercase">${dl.attention_tier} Attention</span>
+                </div>
+                <h4 class="text-base font-bold text-text-primary mt-1">${dl.event}</h4>
+              </div>
+            </div>
+            <span class="font-mono text-xs text-text-muted">${source ? `${source.section_label} • Pg ${source.page}` : ""}</span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-1 text-xs">
+            <div class="bg-canvas-slate p-3 rounded-xl border border-subtle-border flex flex-col gap-1">
+              <span class="font-mono text-[10px] uppercase text-text-muted font-bold flex items-center gap-1">
+                <span class="material-symbols-outlined text-[14px] text-blue-600">assignment_turned_in</span> Required Action
+              </span>
+              <p class="text-text-primary leading-relaxed">${dl.action}</p>
+            </div>
+            <div class="bg-rose-50/60 p-3 rounded-xl border border-rose-200 flex flex-col gap-1">
+              <span class="font-mono text-[10px] uppercase text-rose-800 font-bold flex items-center gap-1">
+                <span class="material-symbols-outlined text-[14px] text-rose-600">warning</span> Legal Consequence
+              </span>
+              <p class="text-rose-900 leading-relaxed">${dl.consequence}</p>
+            </div>
+          </div>
+
+          <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+            <span class="font-mono text-[11px] text-text-muted">BBox: [${source ? source.bbox.join(", ") : ""}]</span>
+            <button onclick="jumpToDocument('${source ? source.page : 1}', '[${source ? source.bbox.join(",") : ""}]', '${source ? source.section_label : ""}')" class="text-blue-600 font-semibold hover:underline flex items-center gap-1">
+              <span>View in Document Viewport</span>
+              <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+            </button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function filterTimeline(cat) {
+      document.querySelectorAll(".tl-chip").forEach(btn => {
+        if (btn.getAttribute("data-tl-filter") === cat) {
+          btn.classList.add("bg-slate-900", "text-white");
+          btn.classList.remove("bg-white", "text-text-secondary");
+        } else {
+          btn.classList.remove("bg-slate-900", "text-white");
+          btn.classList.add("bg-white", "text-text-secondary");
+        }
+      });
+
+      document.querySelectorAll("#timelineCardsContainer .milestone-card").forEach(card => {
+        if (cat === "all" || card.getAttribute("data-dl-category") === cat) {
+          card.classList.remove("hidden");
+        } else {
+          card.classList.add("hidden");
+        }
+      });
+    }
+
+    function focusTimelineMilestone(id) {
+      const dl = currentContract.deadlines.find(d => d.id === id);
+      if (dl && currentContract.sources[dl.source_id]) {
+        const source = currentContract.sources[dl.source_id];
+        jumpToDocument(source.page, `[${source.bbox.join(",")}]`, source.section_label);
+      }
+    }
+
+    function downloadCalendarIcs() {
+      // Build RFC 5545 iCalendar content
+      let icsContent = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//ContractLens//Visual Contract Intelligence//EN",
+        "CALSCALE:GREGORIAN",
+        "METHOD:PUBLISH"
+      ];
+
+      currentContract.deadlines.forEach(dl => {
+        if (dl.date && !dl.date.includes("Recurring")) {
+          const cleanDate = dl.date.replace(/-/g, "");
+          icsContent.push(
+            "BEGIN:VEVENT",
+            `UID:${dl.id}-${currentContractId}@contractlens.local`,
+            `DTSTAMP:20260924T120000Z`,
+            `DTSTART;VALUE=DATE:${cleanDate}`,
+            `SUMMARY:[ContractLens] ${dl.event}`,
+            `DESCRIPTION:${dl.action} Consequence: ${dl.consequence}`,
+            "STATUS:CONFIRMED",
+            "END:VEVENT"
+          );
+        }
+      });
+
+      icsContent.push("END:VCALENDAR");
+
+      const blob = new Blob([icsContent.join("\r\n")], { type: "text/calendar;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `${currentContract.metadata.filename.replace(/\.pdf$/i, "")}-deadlines.ics`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // =========================================================================
+    // DOCUMENT VIEW & BIDIRECTIONAL HIGHLIGHTING
+    // =========================================================================
+    function renderDocumentSheet(pageNum) {
+      docCurrentPage = pageNum;
+      document.getElementById("docCurrentPageInput").value = pageNum;
+      document.getElementById("sheetHeaderPage").textContent = `PAGE ${pageNum} OF ${currentContract.metadata.page_count}`;
+      document.getElementById("sheetHeaderTitle").textContent = currentContract.metadata.title.toUpperCase();
+
+      const body = document.getElementById("sheetContentBody");
+      body.innerHTML = "";
+
+      // Look up clauses located on this page
+      const pageClauses = currentContract.clauses.filter(c => c.page === pageNum);
+      const pageSources = Object.values(currentContract.sources).filter(s => s.page === pageNum);
+
+      if (pageClauses.length === 0 && pageSources.length === 0) {
+        body.innerHTML = `
+          <div class="flex flex-col gap-3 py-6">
+            <h4 class="font-sans font-bold text-sm text-text-primary">SECTION ${pageNum}.1 — GENERAL COVENANTS &amp; CONDITIONS</h4>
+            <p>The Lessee shall quietly enjoy the premises during the subsistence of this lease without interruption by the Lessor or any persons rightfully claiming under or in trust for the Lessor, subject to timely payment of rent and performance of covenants.</p>
+            <p>The Lessee shall keep the demised property in good, tenantable and habitable repair throughout the subsistence of the tenancy, subject to customary wear and tear.</p>
+            <div class="h-4"></div>
+            <p class="text-xs text-text-muted font-mono">[Standard statutory boilerplate text retained on Page ${pageNum}]</p>
+          </div>
+        `;
+        return;
+      }
+
+      // Render clauses with interactive bounding box overlays
+      pageClauses.forEach(cls => {
+        const matchingFinding = currentContract.findings.find(f => {
+          const s = currentContract.sources[f.source_id];
+          return s && s.section_label === `Sec ${cls.section}` && s.page === pageNum;
+        });
+
+        const isHighlighted = matchingFinding !== undefined;
+        const bboxClass = isHighlighted ? "bg-rose-50 border border-dashed border-rose-500 bbox-pulse" : "hover:bg-slate-50";
+
+        const clauseEl = document.createElement("div");
+        clauseEl.className = `p-4 rounded-xl transition-all cursor-pointer relative ${bboxClass}`;
+        clauseEl.onclick = () => {
+          syncDocInspector(cls, matchingFinding);
+        };
+
+        clauseEl.innerHTML = `
+          <div class="flex items-center justify-between mb-1.5 font-sans">
+            <span class="font-bold text-xs ${isHighlighted ? "text-rose-700" : "text-text-primary"}">
+              CLAUSE ${cls.section} — ${cls.title.toUpperCase()}
+            </span>
+            <span class="font-mono text-[10px] ${isHighlighted ? "bg-rose-600 text-white" : "bg-slate-200 text-text-secondary"} px-1.5 py-0.2 rounded">
+              BBox [${cls.bbox.join(", ")}]
+            </span>
+          </div>
+          <p class="text-xs text-slate-800 leading-relaxed">
+            ${cls.summary}
+          </p>
+        `;
+        body.appendChild(clauseEl);
+      });
+
+      // Synchronize Inspector for first clause on page
+      if (pageClauses.length > 0) {
+        const firstCls = pageClauses[0];
+        const match = currentContract.findings.find(f => {
+          const s = currentContract.sources[f.source_id];
+          return s && s.section_label === `Sec ${firstCls.section}`;
+        });
+        syncDocInspector(firstCls, match);
+      }
+    }
+
+    function syncDocInspector(cls, finding) {
+      document.getElementById("syncSectionLabel").textContent = `Section ${cls.section}`;
+      document.getElementById("syncTitle").textContent = cls.title;
+      document.getElementById("syncCategory").textContent = `Clause Type: ${cls.type}`;
+      document.getElementById("syncExplanation").textContent = cls.summary;
+      document.getElementById("syncCoordinates").textContent = `BBox [${cls.bbox.join(", ")}] • Page ${cls.page}`;
+      document.getElementById("docToolbarBBoxLabel").textContent = `[${cls.bbox.join(", ")}]`;
+
+      if (finding) {
+        document.getElementById("syncExactText").textContent = `"${finding.evidence}"`;
+      } else {
+        document.getElementById("syncExactText").textContent = `Standard contract provision governing ${cls.title.toLowerCase()}.`;
+      }
+    }
+
+    function changeDocPage(delta) {
+      const target = docCurrentPage + delta;
+      if (target >= 1 && target <= currentContract.metadata.page_count) {
+        renderDocumentSheet(target);
+      }
+    }
+
+    function setDocPage(num) {
+      if (num >= 1 && num <= currentContract.metadata.page_count) {
+        renderDocumentSheet(num);
+      }
+    }
+
+    function jumpToDocument(page, bbox, sectionLabel) {
+      switchView("document");
+      setDocPage(parseInt(page));
+      document.getElementById("docToolbarBBoxLabel").textContent = bbox;
+      
+      const sheet = document.getElementById("pdfPaperSheet");
+      if (sheet) {
+        sheet.classList.add("ring-4", "ring-blue-500/50");
+        setTimeout(() => {
+          sheet.classList.remove("ring-4", "ring-blue-500/50");
+        }, 1200);
+      }
+    }
+
+    function resetDocZoom() {
+      const sheet = document.getElementById("pdfPaperSheet");
+      if (sheet) {
+        sheet.style.transform = "scale(1)";
+      }
+    }
+
+    function copyActiveClause() {
+      const text = document.getElementById("syncExactText").textContent;
+      navigator.clipboard.writeText(text);
+      alert("Clause snippet copied to clipboard!");
+    }
+
+    // =========================================================================
+    // OVERVIEW INSPECTOR SYNCHRONIZER
+    // =========================================================================
+    function focusOverviewInspector(findingId) {
+      const item = currentContract.findings.find(f => f.id === findingId);
+      if (!item) return;
+
+      const source = currentContract.sources[item.source_id];
+      if (!source) return;
+
+      document.getElementById("overviewActiveCoordLabel").textContent = `${source.section_label} • Page ${source.page}`;
+      document.getElementById("overviewPageHeader").textContent = `RESIDENTIAL LEASE AGREEMENT — PAGE ${source.page} OF ${currentContract.metadata.page_count}`;
+      document.getElementById("overviewClauseTitle").textContent = `CLAUSE ${source.section_label.replace("Sec ", "")} — ${item.title.toUpperCase()}`;
+      document.getElementById("overviewBboxCoords").textContent = `[${source.bbox.join(", ")}]`;
+      document.getElementById("overviewClauseQuote").textContent = `"${item.evidence}"`;
+
+      const box = document.getElementById("overviewBboxHighlight");
+      if (box) {
+        box.classList.remove("bbox-pulse");
+        void box.offsetWidth; // trigger reflow
+        box.classList.add("bbox-pulse");
+      }
+    }
+
+    function copyInspText() {
+      const text = document.getElementById("inspVerbatimQuote").innerText;
+      navigator.clipboard.writeText(text);
+      alert("Raw clause text copied to clipboard!");
+    }
+
+    function copyInspCitation() {
+      const text = `${document.getElementById("inspTitle").innerText} — ${document.getElementById("inspLocation").innerText} (Source: ${document.getElementById("inspCanonical").innerText})`;
+      navigator.clipboard.writeText(text);
+      alert("Citation copied to clipboard!");
+    }
+
+    // =========================================================================
+    // MODAL HANDLERS & UPLOAD PIPELINE SIMULATION
+    // =========================================================================
+    function openUploadModal() {
+      document.getElementById("uploadModal").classList.remove("hidden");
+      document.getElementById("uploadProgressBox").classList.add("hidden");
+    }
+
+    function closeUploadModal() {
+      document.getElementById("uploadModal").classList.add("hidden");
+    }
+
+    function loadSampleLease(id) {
+      closeUploadModal();
+      onContractChange(id);
+    }
+
+    function triggerSimulatedUpload() {
+      const pbox = document.getElementById("uploadProgressBox");
+      const ptext = document.getElementById("pipelineStepText");
+      const pbar = document.getElementById("pipelineBar");
+      const pcent = document.getElementById("pipelinePercent");
+      pbox.classList.remove("hidden");
+
+      const stages = [
+        { pct: 20, txt: "Step 1: Document Ingestion & SHA256 Hashing..." },
+        { pct: 40, txt: "Step 2: OCR Fallback & Layout BBox Coordinate Mapping..." },
+        { pct: 60, txt: "Step 3: Semantic Clause Segmentation (26 segments)..." },
+        { pct: 80, txt: "Step 4: Pydantic Schema Structured Extraction..." },
+        { pct: 95, txt: "Step 5: Deterministic Evidence Substring Validation Gate..." },
+        { pct: 100, txt: "Step 6: Contract IR Generated & Traceability Verified!" }
+      ];
+
+      let idx = 0;
+      const interval = setInterval(() => {
+        if (idx < stages.length) {
+          pbar.style.width = `${stages[idx].pct}%`;
+          pcent.textContent = `${stages[idx].pct}%`;
+          ptext.textContent = stages[idx].txt;
+          idx++;
+        } else {
+          clearInterval(interval);
+          setTimeout(() => {
+            closeUploadModal();
+            onContractChange("doc-palm-meadows-2026");
+            alert("Upload and structured extraction completed with 100% provenance verification!");
+          }, 400);
+        }
+      }, 350);
+    }
+
+    function openExportModal() {
+      document.getElementById("exportModal").classList.remove("hidden");
+      setExportFormat("markdown");
+    }
+
+    function closeExportModal() {
+      document.getElementById("exportModal").classList.add("hidden");
+    }
+
+    function setExportFormat(fmt) {
+      const area = document.getElementById("exportPreviewArea");
+      const tabMd = document.getElementById("expTabMd");
+      const tabPlain = document.getElementById("expTabPlain");
+
+      if (fmt === "markdown") {
+        tabMd.className = "px-3 py-1 rounded-lg bg-slate-900 text-white font-semibold";
+        tabPlain.className = "px-3 py-1 rounded-lg text-text-secondary hover:text-text-primary";
+        area.value = generateMarkdownSummary();
+      } else {
+        tabPlain.className = "px-3 py-1 rounded-lg bg-slate-900 text-white font-semibold";
+        tabMd.className = "px-3 py-1 rounded-lg text-text-secondary hover:text-text-primary";
+        area.value = generateMarkdownSummary().replace(/[#*`_]/g, "");
+      }
+    }
+
+    function generateMarkdownSummary() {
+      return `# ContractLens Executive Audit Summary
+**Contract:** ${currentContract.metadata.title}
+**File:** ${currentContract.metadata.filename}
+**SHA-256:** ${currentContract.metadata.sha256}
+**Traceability Verified:** ${currentContract.metadata.traceability_rate}%
+
+---
+
+## 1. Parties & Tenure
+- **Lessor:** ${currentContract.metadata.parties[0]?.name}
+- **Lessee:** ${currentContract.metadata.parties[1]?.name}
+- **Tenure:** ${currentContract.metadata.tenure_months} Months (${currentContract.metadata.effective_date} to ${currentContract.metadata.expiration_date})
+
+---
+
+## 2. Priority Attention Items
+${currentContract.findings.map(f => {
+  const s = currentContract.sources[f.source_id];
+  return `### [${f.severity_tier.toUpperCase()}] ${f.title}
+- **Category:** ${f.category}
+- **Source:** ${s ? `${s.section_label}, Page ${s.page}` : ""}
+- **Explanation:** ${f.explanation}
+- **Evidence:** "${f.evidence}"
+- **Ambiguity:** ${f.ambiguity_detected ? f.ambiguity_note : "None detected"}
+`;
+}).join("\n")}
+
+---
+
+## 3. Financial Schedule
+| Item | Amount | Frequency | Trigger | Source |
+|---|---|---|---|---|
+${currentContract.financial_terms.map(ft => {
+  const s = currentContract.sources[ft.source_id];
+  return `| ${ft.label} | ₹${ft.amount.toLocaleString("en-IN")} | ${ft.frequency} | ${ft.trigger} | ${s ? `${s.section_label}, P.${s.page}` : ""} |`;
+}).join("\n")}
+
+---
+
+*Non-Legal Advice Disclaimer: Generated deterministically by ContractLens v2.4-GROUNDED.*
+`;
+    }
+
+    function downloadExportFile() {
+      const text = document.getElementById("exportPreviewArea").value;
+      const blob = new Blob([text], { type: "text/markdown;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `${currentContract.metadata.filename.replace(/\.pdf$/i, "")}-audit-summary.md`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  </script>
+</body>
+</html>
