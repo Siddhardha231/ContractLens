@@ -118,88 +118,89 @@
     </div>
 
     <!-- Main Navigation Bar -->
-    <div class="h-14 px-4 sm:px-6 flex items-center justify-between gap-4">
-      <!-- Brand Logo & Contract Title Selector -->
-      <div class="flex items-center gap-3 shrink-0">
-        <div class="flex items-center gap-2.5 cursor-pointer" onclick="switchView('overview')">
+    <div class="h-14 px-3 sm:px-6 flex items-center justify-between gap-2 sm:gap-4">
+      <!-- Brand Logo -->
+      <div class="flex items-center gap-2.5 shrink-0">
+        <div class="flex items-center gap-2 cursor-pointer" onclick="switchView('overview')">
           <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold shadow-inner">
             <span class="material-symbols-outlined text-[20px]">contract</span>
           </div>
           <div class="flex flex-col">
             <span class="font-bold text-base tracking-tight text-white leading-none">ContractLens</span>
-            <span class="font-mono text-[10px] text-slate-400 tracking-wider">VISUAL CONTRACT INTELLIGENCE</span>
+            <span class="font-mono text-[9px] text-slate-400 tracking-wider">VISUAL CONTRACT INTELLIGENCE</span>
+          </div>
+        </div>
+
+        <!-- 1. CHOOSE MODEL DROPDOWN MENU (Prominently visible on all screens) -->
+        <div class="flex items-center gap-1.5 bg-slate-800/90 text-slate-200 text-xs px-2.5 py-1.5 rounded-lg border border-slate-700 shadow-inner ml-1">
+          <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" id="modelStatusIndicator"></span>
+          <span class="font-mono text-[10px] text-slate-400 uppercase font-semibold hidden md:inline">AI MODEL:</span>
+          <div class="relative">
+            <select id="headerModelSelector" onchange="onModelSelect(this.value)" class="bg-transparent text-emerald-300 font-mono text-xs font-bold cursor-pointer focus:outline-none appearance-none pr-5 max-w-[150px] sm:max-w-[210px] truncate" title="Choose local AI model to evaluate contracts">
+              <option value="qwen2.5-coder:7b">qwen2.5-coder:7b (Ollama)</option>
+              <option value="qwen2.5-coder:1.5b">qwen2.5-coder:1.5b (Ollama - Fast)</option>
+              <option value="gpt-3.5-turbo:latest">gpt-3.5-turbo:latest (Ollama)</option>
+              <option value="google/gemma-4-e4b">google/gemma-4-e4b (LM Studio)</option>
+            </select>
+            <span class="material-symbols-outlined absolute right-0 top-1/2 -translate-y-1/2 text-[14px] text-emerald-400 pointer-events-none">expand_more</span>
           </div>
         </div>
 
         <!-- Document Picker Dropdown -->
-        <div class="hidden md:flex items-center gap-2 pl-3 border-l border-slate-700">
+        <div class="hidden 2xl:flex items-center gap-1 pl-2 border-l border-slate-700">
           <div class="relative">
-            <select id="contractSelector" onchange="onContractChange(this.value)" class="bg-slate-800 text-slate-200 text-xs font-medium py-1.5 pl-3 pr-8 rounded-lg border border-slate-700 hover:border-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer appearance-none max-w-[240px] truncate">
-              <option value="doc-palm-meadows-2026">4BHK Palm Meadows — Lease (22 pgs)</option>
-              <option value="doc-koramangala-2026">Koramangala 4th Block — Corporate Flat</option>
+            <select id="contractSelector" onchange="onContractChange(this.value)" class="bg-slate-800 text-slate-200 text-xs font-medium py-1.5 pl-2.5 pr-7 rounded-lg border border-slate-700 hover:border-slate-600 focus:outline-none appearance-none max-w-[190px] truncate">
+              <option value="doc-palm-meadows-2026">4BHK Palm Meadows</option>
+              <option value="doc-koramangala-2026">Koramangala Flat</option>
             </select>
-            <span class="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-[16px] text-slate-400 pointer-events-none">arrow_drop_down</span>
-          </div>
-        </div>
-
-        <!-- LOCAL AI MODEL SELECTOR PILL IN HEADER -->
-        <div class="hidden xl:flex items-center gap-1.5 pl-3 border-l border-slate-700">
-          <div class="flex items-center gap-1.5 bg-slate-800 text-slate-200 text-xs px-2.5 py-1.5 rounded-lg border border-slate-700 shadow-inner">
-            <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" id="modelStatusIndicator"></span>
-            <span class="font-mono text-[10px] text-slate-400 uppercase font-semibold">AI MODEL:</span>
-            <div class="relative">
-              <select id="headerModelSelector" onchange="onModelSelect(this.value)" class="bg-transparent text-emerald-300 font-mono text-xs font-bold cursor-pointer focus:outline-none appearance-none pr-5">
-                <option value="qwen2.5-coder:7b">qwen2.5-coder:7b (Ollama)</option>
-                <option value="qwen2.5-coder:1.5b">qwen2.5-coder:1.5b (Ollama - Fast)</option>
-                <option value="gpt-3.5-turbo:latest">gpt-3.5-turbo:latest (Ollama)</option>
-                <option value="google/gemma-4-e4b">google/gemma-4-e4b (LM Studio)</option>
-              </select>
-              <span class="material-symbols-outlined absolute right-0 top-1/2 -translate-y-1/2 text-[14px] text-emerald-400 pointer-events-none">expand_more</span>
-            </div>
+            <span class="material-symbols-outlined absolute right-1.5 top-1/2 -translate-y-1/2 text-[14px] text-slate-400 pointer-events-none">expand_more</span>
           </div>
         </div>
       </div>
 
-      <!-- Core Tabs Navigation (Including New AI Evaluation Studio) -->
-      <nav class="hidden lg:flex items-center gap-1 bg-slate-800/80 p-1 rounded-xl border border-slate-700" id="mainTabsNav">
+      <!-- Core Tabs Navigation (Including Evaluate Studio) -->
+      <nav class="hidden lg:flex items-center gap-1 bg-slate-800/80 p-1 rounded-xl border border-slate-700 shrink-0" id="mainTabsNav">
         <button onclick="switchView('overview')" data-view="overview" class="tab-btn active px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-white bg-blue-600 shadow-sm flex items-center gap-1.5">
-          <span class="material-symbols-outlined text-[16px]">dashboard</span>
+          <span class="material-symbols-outlined text-[15px]">dashboard</span>
           <span>Overview</span>
         </button>
         <button onclick="switchView('attention')" data-view="attention" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white hover:bg-slate-700/60 flex items-center gap-1.5">
-          <span class="material-symbols-outlined text-[16px]">notification_important</span>
+          <span class="material-symbols-outlined text-[15px]">notification_important</span>
           <span>Attention</span>
           <span class="px-1.5 py-0.2 rounded-full text-[10px] bg-rose-500/20 text-rose-300 font-mono font-semibold" id="tabAttentionBadge">7</span>
         </button>
         <button onclick="switchView('money')" data-view="money" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white hover:bg-slate-700/60 flex items-center gap-1.5">
-          <span class="material-symbols-outlined text-[16px]">payments</span>
+          <span class="material-symbols-outlined text-[15px]">payments</span>
           <span>Money</span>
         </button>
         <button onclick="switchView('timeline')" data-view="timeline" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white hover:bg-slate-700/60 flex items-center gap-1.5">
-          <span class="material-symbols-outlined text-[16px]">event_repeat</span>
+          <span class="material-symbols-outlined text-[15px]">event_repeat</span>
           <span>Timeline</span>
-          <span class="px-1.5 py-0.2 rounded-full text-[10px] bg-blue-500/20 text-blue-300 font-mono">6</span>
         </button>
         <button onclick="switchView('document')" data-view="document" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white hover:bg-slate-700/60 flex items-center gap-1.5">
-          <span class="material-symbols-outlined text-[16px]">find_in_page</span>
+          <span class="material-symbols-outlined text-[15px]">find_in_page</span>
           <span>Document</span>
         </button>
         
-        <!-- NEW TAB: AI EVALUATION STUDIO -->
+        <!-- EVALUATE STUDIO TAB -->
         <button onclick="switchView('evaluate')" data-view="evaluate" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-amber-300 bg-amber-950/70 hover:bg-amber-900/80 border border-amber-700/80 flex items-center gap-1 shadow-sm">
-          <span class="material-symbols-outlined text-[16px] text-amber-400">bolt</span>
+          <span class="material-symbols-outlined text-[15px] text-amber-400">bolt</span>
           <span>Evaluate Studio</span>
         </button>
       </nav>
 
-      <!-- Action Buttons: Upload, Export & AI Chat -->
-      <div class="flex items-center gap-2">
-        <button onclick="switchView('evaluate')" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold shadow-sm transition-all">
-          <span class="material-symbols-outlined text-[16px]">add_circle</span>
-          <span class="hidden sm:inline">Evaluate Contract</span>
+      <!-- 2. UPLOAD CONTRACT BUTTON (Prominently visible in header) -->
+      <div class="flex items-center gap-2 shrink-0">
+        <!-- Hidden direct file input trigger -->
+        <input type="file" id="globalDirectFileInput" accept=".pdf,.txt,.md,.doc,.docx" onchange="handleGlobalDirectFile(event)" class="hidden" />
+        
+        <button onclick="triggerDirectUpload()" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md transition-all cursor-pointer">
+          <span class="material-symbols-outlined text-[16px]">upload_file</span>
+          <span>Upload Contract</span>
         </button>
-        <button onclick="openExportModal()" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition-all">
-          <span class="material-symbols-outlined text-[16px]">ios_share</span>
+
+        <button onclick="openExportModal()" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-all">
+          <span class="material-symbols-outlined text-[15px]">ios_share</span>
           <span class="hidden sm:inline">Export</span>
         </button>
       </div>
@@ -340,20 +341,16 @@
           <!-- LEFT 7 COLS: Contract Input Canvas -->
           <div class="xl:col-span-7 flex flex-col gap-4">
             
-            <!-- Ingestion Mode Selector Tabs & Preset Loader -->
-            <div class="bg-panel-surface p-4 rounded-2xl border border-subtle-border shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-semibold">
-                <button onclick="setStudioInputMode('paste')" id="btnInputPaste" class="px-3 py-1.5 rounded-lg bg-white text-text-primary shadow-sm">
-                  Paste Contract Text
-                </button>
-                <button onclick="setStudioInputMode('upload')" id="btnInputUpload" class="px-3 py-1.5 rounded-lg text-text-secondary hover:text-text-primary">
-                  Upload PDF / Doc
-                </button>
+            <!-- Ingestion Mode Bar & Preset Loader -->
+            <div class="bg-panel-surface p-3.5 rounded-2xl border border-subtle-border shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-blue-600 text-lg">drive_folder_upload</span>
+                <span class="text-xs font-bold text-text-primary uppercase tracking-wider font-mono">Contract Input Options</span>
               </div>
 
               <!-- Quick Template Select Dropdown -->
               <div class="flex items-center gap-2">
-                <span class="text-xs text-text-muted font-mono hidden sm:inline">Template:</span>
+                <span class="text-xs text-text-muted font-mono hidden sm:inline">Or load template:</span>
                 <div class="relative">
                   <select id="presetTemplateSelect" onchange="loadPresetToStudio(this.value)" class="bg-canvas-slate text-xs font-medium text-text-primary py-1.5 pl-3 pr-8 rounded-lg border border-subtle-border focus:outline-none focus:ring-1 focus:ring-blue-500 appearance-none cursor-pointer">
                     <option value="">Load Sample Contract Template...</option>
@@ -367,17 +364,21 @@
               </div>
             </div>
 
-            <!-- Upload File Dropzone Area (Shown when Upload mode is active) -->
-            <div id="studioUploadZone" class="hidden bg-panel-surface p-8 rounded-2xl border-2 border-dashed border-slate-300 hover:border-blue-500 transition-all flex flex-col items-center justify-center gap-3 text-center cursor-pointer shadow-sm" onclick="document.getElementById('studioFileInput').click()">
+            <!-- Upload File Dropzone Area (Prominently visible above editor) -->
+            <div id="studioUploadZone" class="bg-panel-surface p-4 sm:p-5 rounded-2xl border-2 border-dashed border-slate-300 hover:border-blue-500 hover:bg-blue-50/20 transition-all flex items-center justify-between gap-4 cursor-pointer shadow-sm group" onclick="document.getElementById('studioFileInput').click()" ondragover="event.preventDefault(); this.classList.add('border-blue-600', 'bg-blue-50/40');" ondragleave="this.classList.remove('border-blue-600', 'bg-blue-50/40');" ondrop="event.preventDefault(); this.classList.remove('border-blue-600', 'bg-blue-50/40'); if(event.dataTransfer.files[0]) handleStudioFileSelect({target: {files: [event.dataTransfer.files[0]]}});">
               <input type="file" id="studioFileInput" accept=".pdf,.txt,.md,.doc,.docx" onchange="handleStudioFileSelect(event)" class="hidden" />
-              <div class="h-14 w-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                <span class="material-symbols-outlined text-3xl">upload_file</span>
+              <div class="flex items-center gap-3.5">
+                <div class="h-11 w-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-105 transition-all shrink-0">
+                  <span class="material-symbols-outlined text-2xl">upload_file</span>
+                </div>
+                <div class="flex flex-col">
+                  <span class="text-xs sm:text-sm font-bold text-text-primary">Click to Browse or Drag &amp; Drop Contract (PDF, TXT, DOCX)</span>
+                  <span class="text-[11px] text-text-muted">Extracts text and coordinates into the editor below for local AI evaluation</span>
+                </div>
               </div>
-              <div class="flex flex-col gap-0.5">
-                <span class="text-sm font-bold text-text-primary">Click or drop lease PDF, TXT or Markdown here</span>
-                <span class="text-xs text-text-muted">Parses pages, tables and text coordinates automatically</span>
-              </div>
-              <span class="px-3.5 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold shadow-sm mt-1">Browse Document</span>
+              <span class="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm shrink-0 flex items-center gap-1">
+                <span class="material-symbols-outlined text-[15px]">file_open</span> Browse File
+              </span>
             </div>
 
             <!-- Monospace Contract Text Editor Area (Where you put contracts in) -->
@@ -1839,6 +1840,19 @@
         bTriage.className = "p-2 rounded-xl border border-blue-500 bg-blue-50 text-blue-700 font-semibold text-center";
       } else {
         bFin.className = "p-2 rounded-xl border border-blue-500 bg-blue-50 text-blue-700 font-semibold text-center";
+      }
+    }
+
+    function triggerDirectUpload() {
+      const input = document.getElementById("globalDirectFileInput");
+      if (input) input.click();
+    }
+
+    function handleGlobalDirectFile(event) {
+      const file = event.target.files && event.target.files[0];
+      if (file) {
+        switchView('evaluate');
+        handleStudioFileSelect({ target: { files: [file] } });
       }
     }
 
