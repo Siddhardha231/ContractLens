@@ -1603,14 +1603,15 @@
       deckSelect.innerHTML = "";
 
       models.forEach(m => {
+        const providerLabel = m.provider === 'gemini' ? 'Gemini Cloud' : (m.provider === 'ollama' ? 'Ollama' : 'LM Studio');
         const opt1 = document.createElement("option");
         opt1.value = m.id;
-        opt1.textContent = `${m.name} (${m.provider === 'ollama' ? 'Ollama' : 'LM Studio'})`;
+        opt1.textContent = `${m.name} (${providerLabel})`;
         headerSelect.appendChild(opt1);
 
         const opt2 = document.createElement("option");
         opt2.value = m.id;
-        opt2.textContent = `${m.name} (${m.provider === 'ollama' ? 'Ollama' : 'LM Studio'})`;
+        opt2.textContent = `${m.name} (${providerLabel})`;
         deckSelect.appendChild(opt2);
       });
 
@@ -1946,7 +1947,7 @@
             contract_text: text,
             contract_title: title,
             model: selectedModel,
-            provider: selectedModel.includes("gemma") ? "lmstudio" : "ollama",
+            provider: selectedModel.includes("gemini") ? "gemini" : (selectedModel.includes("gemma") ? "lmstudio" : "ollama"),
             temperature: parseFloat(document.getElementById("tempSlider").value)
           })
         });
@@ -2164,7 +2165,7 @@ Painting deduction: INR 15,000/- upon vacating.`;
             question: question,
             contract_text: contractContext,
             model: selectedModel,
-            provider: selectedModel.includes("gemma") ? "lmstudio" : "ollama"
+            provider: selectedModel.includes("gemini") ? "gemini" : (selectedModel.includes("gemma") ? "lmstudio" : "ollama")
           })
         });
 

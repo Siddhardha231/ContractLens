@@ -20,3 +20,16 @@ ehthumbs_vista.db
 node_modules/
 __pycache__/
 *.pyc
+
+# Local plans archive
+plans/
+
+# Local storage & databases
+data/
+*.db
+*.sqlite
+
+# Environment files
+.env
+.env.*
+
