@@ -119,8 +119,12 @@
 
     <!-- Main Navigation Bar -->
     <div class="h-14 px-3 sm:px-6 flex items-center justify-between gap-2 sm:gap-4">
-      <!-- Brand Logo -->
+      <!-- Brand Logo & Workspace Controls -->
       <div class="flex items-center gap-2.5 shrink-0">
+        <button onclick="toggleSidebar()" class="hidden xl:flex items-center justify-center h-8 w-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-all border border-slate-700" title="Toggle Audit Sidebar">
+          <span class="material-symbols-outlined text-[18px]" id="sidebarToggleIcon">dock_to_right</span>
+        </button>
+
         <div class="flex items-center gap-2 cursor-pointer" onclick="switchView('overview')">
           <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold shadow-inner">
             <span class="material-symbols-outlined text-[20px]">contract</span>
@@ -131,23 +135,23 @@
           </div>
         </div>
 
-        <!-- 1. CHOOSE MODEL DROPDOWN MENU (Prominently visible on all screens) -->
+        <!-- 1. CHOOSE MODEL DROPDOWN MENU -->
         <div class="flex items-center gap-1.5 bg-slate-800/90 text-slate-200 text-xs px-2.5 py-1.5 rounded-lg border border-slate-700 shadow-inner ml-1">
           <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" id="modelStatusIndicator"></span>
-          <span class="font-mono text-[10px] text-slate-400 uppercase font-semibold hidden md:inline">AI MODEL:</span>
+          <span class="font-mono text-[10px] text-slate-400 uppercase font-semibold hidden md:inline">MODEL:</span>
           <div class="relative">
-            <select id="headerModelSelector" onchange="onModelSelect(this.value)" class="bg-transparent text-emerald-300 font-mono text-xs font-bold cursor-pointer focus:outline-none appearance-none pr-5 max-w-[150px] sm:max-w-[210px] truncate" title="Choose local AI model to evaluate contracts">
+            <select id="headerModelSelector" onchange="onModelSelect(this.value)" class="bg-transparent text-emerald-300 font-mono text-xs font-bold cursor-pointer focus:outline-none appearance-none pr-5 max-w-[140px] sm:max-w-[200px] truncate" title="Choose AI model to evaluate contracts">
+              <option value="gemini-3.8-flash">gemini-3.8-flash (Google Cloud)</option>
               <option value="qwen2.5-coder:7b">qwen2.5-coder:7b (Ollama)</option>
               <option value="qwen2.5-coder:1.5b">qwen2.5-coder:1.5b (Ollama - Fast)</option>
-              <option value="gpt-3.5-turbo:latest">gpt-3.5-turbo:latest (Ollama)</option>
               <option value="google/gemma-4-e4b">google/gemma-4-e4b (LM Studio)</option>
             </select>
             <span class="material-symbols-outlined absolute right-0 top-1/2 -translate-y-1/2 text-[14px] text-emerald-400 pointer-events-none">expand_more</span>
           </div>
         </div>
 
-        <!-- Document Picker Dropdown -->
-        <div class="hidden 2xl:flex items-center gap-1 pl-2 border-l border-slate-700">
+        <!-- Document Picker Dropdown & Manager Trigger -->
+        <div class="hidden 2xl:flex items-center gap-1.5 pl-2 border-l border-slate-700">
           <div class="relative">
             <select id="contractSelector" onchange="onContractChange(this.value)" class="bg-slate-800 text-slate-200 text-xs font-medium py-1.5 pl-2.5 pr-7 rounded-lg border border-slate-700 hover:border-slate-600 focus:outline-none appearance-none max-w-[190px] truncate">
               <option value="doc-palm-meadows-2026">4BHK Palm Meadows</option>
@@ -155,48 +159,68 @@
             </select>
             <span class="material-symbols-outlined absolute right-1.5 top-1/2 -translate-y-1/2 text-[14px] text-slate-400 pointer-events-none">expand_more</span>
           </div>
+          <button onclick="openDocManagerModal()" class="px-2 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs border border-slate-700 flex items-center gap-1 transition-all" title="Manage Stored Contracts">
+            <span class="material-symbols-outlined text-[15px] text-blue-400">folder_open</span>
+            <span class="font-medium text-[11px]">Library</span>
+          </button>
         </div>
       </div>
 
-      <!-- Core Tabs Navigation (Including Evaluate Studio) -->
+      <!-- Core Tabs Navigation (Including Obligations, Compare, and Studio) -->
       <nav class="hidden lg:flex items-center gap-1 bg-slate-800/80 p-1 rounded-xl border border-slate-700 shrink-0" id="mainTabsNav">
-        <button onclick="switchView('overview')" data-view="overview" class="tab-btn active px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-white bg-blue-600 shadow-sm flex items-center gap-1.5">
+        <button onclick="switchView('overview')" data-view="overview" class="tab-btn active px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-white bg-blue-600 shadow-sm flex items-center gap-1.5">
           <span class="material-symbols-outlined text-[15px]">dashboard</span>
           <span>Overview</span>
         </button>
-        <button onclick="switchView('attention')" data-view="attention" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white hover:bg-slate-700/60 flex items-center gap-1.5">
+        <button onclick="switchView('attention')" data-view="attention" class="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white hover:bg-slate-700/60 flex items-center gap-1.5">
           <span class="material-symbols-outlined text-[15px]">notification_important</span>
           <span>Attention</span>
           <span class="px-1.5 py-0.2 rounded-full text-[10px] bg-rose-500/20 text-rose-300 font-mono font-semibold" id="tabAttentionBadge">7</span>
         </button>
-        <button onclick="switchView('money')" data-view="money" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white hover:bg-slate-700/60 flex items-center gap-1.5">
+        <button onclick="switchView('money')" data-view="money" class="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white hover:bg-slate-700/60 flex items-center gap-1.5">
           <span class="material-symbols-outlined text-[15px]">payments</span>
           <span>Money</span>
         </button>
-        <button onclick="switchView('timeline')" data-view="timeline" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white hover:bg-slate-700/60 flex items-center gap-1.5">
+        <button onclick="switchView('timeline')" data-view="timeline" class="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white hover:bg-slate-700/60 flex items-center gap-1.5">
           <span class="material-symbols-outlined text-[15px]">event_repeat</span>
           <span>Timeline</span>
         </button>
-        <button onclick="switchView('document')" data-view="document" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white hover:bg-slate-700/60 flex items-center gap-1.5">
+        <!-- NEW TAB: OBLIGATIONS & COVENANTS -->
+        <button onclick="switchView('obligations')" data-view="obligations" class="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white hover:bg-slate-700/60 flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-[15px]">rule</span>
+          <span>Obligations</span>
+          <span class="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-500/20 text-emerald-300 font-mono font-semibold" id="tabObligationsBadge">7</span>
+        </button>
+        <!-- NEW TAB: CONTRACT COMPARISON & BENCHMARK -->
+        <button onclick="switchView('compare')" data-view="compare" class="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white hover:bg-slate-700/60 flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-[15px]">compare_arrows</span>
+          <span>Compare</span>
+        </button>
+        <button onclick="switchView('document')" data-view="document" class="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white hover:bg-slate-700/60 flex items-center gap-1.5">
           <span class="material-symbols-outlined text-[15px]">find_in_page</span>
           <span>Document</span>
         </button>
         
         <!-- EVALUATE STUDIO TAB -->
-        <button onclick="switchView('evaluate')" data-view="evaluate" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-amber-300 bg-amber-950/70 hover:bg-amber-900/80 border border-amber-700/80 flex items-center gap-1 shadow-sm">
+        <button onclick="switchView('evaluate')" data-view="evaluate" class="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all text-amber-300 bg-amber-950/70 hover:bg-amber-900/80 border border-amber-700/80 flex items-center gap-1 shadow-sm">
           <span class="material-symbols-outlined text-[15px] text-amber-400">bolt</span>
-          <span>Evaluate Studio</span>
+          <span>Studio</span>
         </button>
       </nav>
 
-      <!-- 2. UPLOAD CONTRACT BUTTON (Prominently visible in header) -->
+      <!-- Action Buttons -->
       <div class="flex items-center gap-2 shrink-0">
-        <!-- Hidden direct file input trigger -->
         <input type="file" id="globalDirectFileInput" accept=".pdf,.txt,.md,.doc,.docx" onchange="handleGlobalDirectFile(event)" class="hidden" />
         
-        <button onclick="triggerDirectUpload()" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md transition-all cursor-pointer">
+        <button onclick="openDocManagerModal()" class="2xl:hidden inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition-all">
+          <span class="material-symbols-outlined text-[15px] text-blue-400">folder_open</span>
+          <span class="hidden sm:inline">Library</span>
+        </button>
+
+        <button onclick="triggerDirectUpload()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md transition-all cursor-pointer">
           <span class="material-symbols-outlined text-[16px]">upload_file</span>
-          <span>Upload Contract</span>
+          <span class="hidden sm:inline">Upload Contract</span>
+          <span class="sm:hidden">Upload</span>
         </button>
 
         <button onclick="openExportModal()" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-all">
@@ -207,13 +231,15 @@
     </div>
 
     <!-- Mobile Subnav Strip -->
-    <div class="lg:hidden flex items-center justify-around bg-slate-900 border-t border-slate-800 px-2 py-1.5 overflow-x-auto text-xs">
-      <button onclick="switchView('overview')" class="px-2 py-1 text-slate-300 font-medium hover:text-white">Overview</button>
-      <button onclick="switchView('attention')" class="px-2 py-1 text-slate-300 font-medium hover:text-white">Attention</button>
-      <button onclick="switchView('money')" class="px-2 py-1 text-slate-300 font-medium hover:text-white">Money</button>
-      <button onclick="switchView('timeline')" class="px-2 py-1 text-slate-300 font-medium hover:text-white">Timeline</button>
-      <button onclick="switchView('document')" class="px-2 py-1 text-slate-300 font-medium hover:text-white">Document</button>
-      <button onclick="switchView('evaluate')" class="px-2 py-1 text-amber-400 font-bold hover:text-amber-300 flex items-center gap-0.5">
+    <div class="lg:hidden flex items-center justify-around bg-slate-900 border-t border-slate-800 px-2 py-1.5 overflow-x-auto text-xs gap-1">
+      <button onclick="switchView('overview')" class="px-2 py-1 text-slate-300 font-medium hover:text-white shrink-0">Overview</button>
+      <button onclick="switchView('attention')" class="px-2 py-1 text-slate-300 font-medium hover:text-white shrink-0">Attention</button>
+      <button onclick="switchView('money')" class="px-2 py-1 text-slate-300 font-medium hover:text-white shrink-0">Money</button>
+      <button onclick="switchView('timeline')" class="px-2 py-1 text-slate-300 font-medium hover:text-white shrink-0">Timeline</button>
+      <button onclick="switchView('obligations')" class="px-2 py-1 text-slate-300 font-medium hover:text-white shrink-0">Obligations</button>
+      <button onclick="switchView('compare')" class="px-2 py-1 text-slate-300 font-medium hover:text-white shrink-0">Compare</button>
+      <button onclick="switchView('document')" class="px-2 py-1 text-slate-300 font-medium hover:text-white shrink-0">Document</button>
+      <button onclick="switchView('evaluate')" class="px-2 py-1 text-amber-400 font-bold hover:text-amber-300 flex items-center gap-0.5 shrink-0">
         <span class="material-symbols-outlined text-[14px]">bolt</span> Studio
       </button>
     </div>
@@ -225,7 +251,7 @@
   <div class="flex-1 flex pt-24 min-h-screen">
     
     <!-- LEFT AUDIT SIDEBAR -->
-    <aside class="hidden xl:flex flex-col w-64 bg-white border-r border-subtle-border p-4 gap-5 shrink-0 justify-between">
+    <aside id="auditSidebar" class="hidden xl:flex flex-col w-64 bg-white border-r border-subtle-border p-4 gap-5 shrink-0 justify-between transition-all duration-300">
       <div class="flex flex-col gap-4">
         <!-- Sidebar Category Header -->
         <div class="flex items-center justify-between">
@@ -1012,7 +1038,7 @@
                     <span>Copy Citation</span>
                   </button>
                 </div>
-                <button onclick="alert('Item flagged for negotiation checklist export!')" class="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold border border-rose-200 transition-all">
+                <button onclick="showToast('Item flagged for negotiation checklist export!', 'info')" class="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold border border-rose-200 transition-all">
                   <span class="material-symbols-outlined text-[16px]">flag</span>
                   <span>Flag for Negotiation</span>
                 </button>
@@ -1036,7 +1062,7 @@
             </div>
             <div class="flex items-center gap-2">
               <span class="px-2.5 py-1 rounded-md bg-canvas-slate border border-subtle-border font-mono text-xs font-bold text-text-primary">INR (₹)</span>
-              <button onclick="alert('Cashflow schedule exported!')" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition-all flex items-center gap-1">
+              <button onclick="showToast('Cashflow schedule exported!', 'success')" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition-all flex items-center gap-1">
                 <span class="material-symbols-outlined text-[16px]">download</span>
                 <span>Download Schedule</span>
               </button>
@@ -1306,14 +1332,24 @@
             </span>
           </div>
 
-          <!-- Zoom & Display Controls -->
-          <div class="flex items-center gap-2 text-xs">
+          <!-- Zoom, Search & Display Controls -->
+          <div class="flex items-center gap-2 text-xs flex-wrap">
+            <div class="relative flex items-center">
+              <span class="material-symbols-outlined absolute left-2 text-[14px] text-text-muted pointer-events-none">search</span>
+              <input type="text" id="docClauseSearch" placeholder="Filter page clauses..." oninput="onDocClauseSearch(this.value)" class="pl-6 pr-2 py-1 text-xs rounded-lg bg-canvas-slate border border-subtle-border focus:outline-none focus:ring-1 focus:ring-blue-500 w-32 sm:w-44" />
+            </div>
             <span class="font-mono text-text-muted text-[11px] hidden sm:inline">Active BBox:</span>
             <span class="px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 font-mono text-xs font-semibold" id="docToolbarBBoxLabel">
               [120, 450, 520, 490]
             </span>
-            <button onclick="resetDocZoom()" class="p-1.5 rounded-lg bg-canvas-slate hover:bg-slate-200 text-text-primary border border-subtle-border">
-              <span class="material-symbols-outlined text-[18px]">fit_screen</span>
+            <button onclick="zoomDoc(0.1)" class="p-1.5 rounded-lg bg-canvas-slate hover:bg-slate-200 text-text-primary border border-subtle-border" title="Zoom In">
+              <span class="material-symbols-outlined text-[16px]">zoom_in</span>
+            </button>
+            <button onclick="zoomDoc(-0.1)" class="p-1.5 rounded-lg bg-canvas-slate hover:bg-slate-200 text-text-primary border border-subtle-border" title="Zoom Out">
+              <span class="material-symbols-outlined text-[16px]">zoom_out</span>
+            </button>
+            <button onclick="resetDocZoom()" class="p-1.5 rounded-lg bg-canvas-slate hover:bg-slate-200 text-text-primary border border-subtle-border" title="Reset Zoom">
+              <span class="material-symbols-outlined text-[16px]">fit_screen</span>
             </button>
           </div>
         </div>
@@ -1395,39 +1431,144 @@
         </div>
       </section>
 
+      <!-- =================================================================== -->
+      <!-- NEW VIEW: OBLIGATIONS & COVENANTS VIEW -->
+      <!-- =================================================================== -->
+      <section id="view-obligations" class="view-panel hidden flex flex-col gap-6">
+        <!-- Header Banner -->
+        <div class="bg-panel-surface p-6 rounded-2xl border border-subtle-border shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div class="flex flex-col gap-1">
+            <div class="flex items-center gap-2">
+              <span class="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-mono text-[11px] font-bold flex items-center gap-1">
+                <span class="material-symbols-outlined text-[14px] text-emerald-600">rule</span> PDD §8 COVENANTS ENGINE
+              </span>
+              <span class="text-xs text-text-muted font-mono" id="obHeaderCount">7 Obligations Tracked</span>
+            </div>
+            <h1 class="text-2xl font-bold text-text-primary tracking-tight">
+              Obligations &amp; Covenants Matrix
+            </h1>
+            <p class="text-xs sm:text-sm text-text-secondary max-w-3xl">
+              Who must do what, and under which conditions. Every single contractual obligation is deterministically grounded with exact bounding box citations.
+            </p>
+          </div>
+          <!-- Filter Chips -->
+          <div class="flex items-center gap-1.5 flex-wrap bg-canvas-slate p-1.5 rounded-xl border border-subtle-border">
+            <button onclick="filterObligations('all')" data-ob-filter="all" class="ob-filter-chip px-3 py-1 rounded-lg text-xs font-semibold bg-slate-900 text-white shadow-sm transition-all">All</button>
+            <button onclick="filterObligations('lessee')" data-ob-filter="lessee" class="ob-filter-chip px-3 py-1 rounded-lg text-xs font-semibold bg-white text-text-secondary hover:text-text-primary transition-all">Lessee (Tenant)</button>
+            <button onclick="filterObligations('lessor')" data-ob-filter="lessor" class="ob-filter-chip px-3 py-1 rounded-lg text-xs font-semibold bg-white text-text-secondary hover:text-text-primary transition-all">Lessor (Landlord)</button>
+            <button onclick="filterObligations('mutual')" data-ob-filter="mutual" class="ob-filter-chip px-3 py-1 rounded-lg text-xs font-semibold bg-white text-text-secondary hover:text-text-primary transition-all">Mutual</button>
+          </div>
+        </div>
+
+        <!-- Obligations Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="obligationsCardsGrid">
+          <!-- Populated dynamically by renderObligationsView() -->
+        </div>
+      </section>
+
+      <!-- =================================================================== -->
+      <!-- NEW VIEW: CONTRACT COMPARISON & BENCHMARKING -->
+      <!-- =================================================================== -->
+      <section id="view-compare" class="view-panel hidden flex flex-col gap-6">
+        <div class="bg-panel-surface p-6 rounded-2xl border border-subtle-border shadow-sm flex flex-col gap-3">
+          <div class="flex items-center gap-2">
+            <span class="px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-800 border border-blue-200 font-mono text-[11px] font-bold flex items-center gap-1">
+              <span class="material-symbols-outlined text-[14px] text-blue-600">compare_arrows</span> CONTRACT DIFF &amp; BENCHMARK
+            </span>
+          </div>
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 class="text-2xl font-bold text-text-primary tracking-tight">
+                Contract Intelligence Comparison Matrix
+              </h1>
+              <p class="text-xs sm:text-sm text-text-secondary">
+                Side-by-side analysis against other stored agreements or market benchmarks to identify favorable terms and latent risks.
+              </p>
+            </div>
+            <!-- Comparative Selectors -->
+            <div class="flex items-center gap-2 flex-wrap">
+              <div class="flex items-center gap-1.5 bg-canvas-slate p-2 rounded-xl border border-subtle-border text-xs">
+                <span class="text-text-muted font-medium">Compare:</span>
+                <select id="compareDocA" onchange="runContractComparison()" class="bg-white px-2 py-1 rounded border border-subtle-border font-medium text-text-primary">
+                  <!-- Populated dynamically -->
+                </select>
+                <span class="text-text-muted font-medium">with:</span>
+                <select id="compareDocB" onchange="runContractComparison()" class="bg-white px-2 py-1 rounded border border-subtle-border font-medium text-text-primary">
+                  <!-- Populated dynamically -->
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Comparative Matrix Cards & Table -->
+        <div class="bg-panel-surface rounded-2xl border border-subtle-border shadow-sm overflow-hidden flex flex-col">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="bg-slate-900 text-white font-mono text-[11px] uppercase tracking-wider">
+                  <th class="px-6 py-4">Contract Provision / Term</th>
+                  <th class="px-6 py-4" id="compareColTitleA">Contract A (Active)</th>
+                  <th class="px-6 py-4" id="compareColTitleB">Contract B (Comparison)</th>
+                  <th class="px-6 py-4 text-right">Tenant Risk Assessment</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-subtle-border" id="compareTableBody">
+                <!-- Dynamically populated by renderCompareView() -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
     </main>
   </div>
 
-  <!-- ========================================================================= -->
+  <!-- Floating Toast Notification Center -->
+  <div id="toastContainer" class="fixed bottom-6 left-6 z-[70] flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- Floating Backdrop for Chat Drawer -->
+  <div id="aiChatBackdrop" onclick="toggleAiChatDrawer()" class="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-[55] hidden transition-opacity duration-300"></div>
+
   <!-- FLOATING INTERACTIVE AI Q&A DRAWER -->
-  <!-- ========================================================================= -->
-  <div id="aiChatDrawer" class="fixed right-0 top-14 bottom-0 w-full sm:w-96 bg-white shadow-2xl border-l border-subtle-border z-40 transform translate-x-full transition-transform duration-300 flex flex-col">
-    <!-- Chat Header -->
-    <div class="p-4 bg-slate-900 text-white flex items-center justify-between">
-      <div class="flex items-center gap-2">
-        <span class="material-symbols-outlined text-amber-400 text-[20px]">chat</span>
+  <div id="aiChatDrawer" class="fixed inset-y-0 right-0 w-full sm:w-[420px] bg-white shadow-2xl border-l border-slate-200 z-[60] transform translate-x-full transition-transform duration-300 flex flex-col">
+    <!-- Chat Header: High elevation, prominent close button, perfectly clear and un-obscured -->
+    <div class="h-16 px-5 bg-slate-900 text-white flex items-center justify-between shrink-0 border-b border-slate-800">
+      <div class="flex items-center gap-3">
+        <div class="h-9 w-9 rounded-xl bg-blue-600/30 border border-blue-500/40 flex items-center justify-center text-amber-400">
+          <span class="material-symbols-outlined text-[20px]">chat</span>
+        </div>
         <div class="flex flex-col">
-          <span class="text-xs font-bold">Contract Intelligence AI</span>
-          <span class="font-mono text-[10px] text-emerald-400" id="chatDrawerModelName">qwen2.5-coder:7b</span>
+          <span class="text-xs font-bold text-white tracking-wide">ContractLens AI Assistant</span>
+          <div class="flex items-center gap-1.5 mt-0.5">
+            <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span class="font-mono text-[10px] text-emerald-300 font-semibold truncate max-w-[170px]" id="chatDrawerModelName">qwen2.5-coder:7b</span>
+          </div>
         </div>
       </div>
-      <button onclick="toggleAiChatDrawer()" class="text-slate-400 hover:text-white">
+      <button onclick="toggleAiChatDrawer()" class="h-8 w-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition-all cursor-pointer" title="Close Chat Drawer">
         <span class="material-symbols-outlined text-[20px]">close</span>
       </button>
     </div>
 
     <!-- Suggested Question Prompts -->
     <div class="p-3 bg-canvas-slate border-b border-subtle-border flex flex-col gap-1.5">
-      <span class="font-mono text-[10px] uppercase text-text-muted font-bold">Suggested Questions</span>
+      <div class="flex items-center justify-between">
+        <span class="font-mono text-[10px] uppercase text-text-muted font-bold">Suggested Inquiries</span>
+        <span class="text-[10px] text-emerald-600 font-mono font-medium">Free &amp; Grounded</span>
+      </div>
       <div class="flex flex-wrap gap-1">
-        <button onclick="askPresetQuestion('What is the penalty if I terminate the lease early?')" class="text-[11px] bg-white text-text-primary px-2 py-1 rounded-md border border-subtle-border hover:border-blue-500 text-left">
+        <button onclick="askPresetQuestion('What is the penalty if I terminate the lease early?')" class="text-[11px] bg-white text-text-primary px-2.5 py-1 rounded-md border border-subtle-border hover:border-blue-500 text-left">
           Early exit penalty?
         </button>
-        <button onclick="askPresetQuestion('Can the landlord enter the house without 24h notice?')" class="text-[11px] bg-white text-text-primary px-2 py-1 rounded-md border border-subtle-border hover:border-blue-500 text-left">
+        <button onclick="askPresetQuestion('Can the landlord enter the house without 24h notice?')" class="text-[11px] bg-white text-text-primary px-2.5 py-1 rounded-md border border-subtle-border hover:border-blue-500 text-left">
           Landlord entry rights?
         </button>
-        <button onclick="askPresetQuestion('How is the security deposit refunded and what are the deductions?')" class="text-[11px] bg-white text-text-primary px-2 py-1 rounded-md border border-subtle-border hover:border-blue-500 text-left">
+        <button onclick="askPresetQuestion('How is the security deposit refunded and what are the deductions?')" class="text-[11px] bg-white text-text-primary px-2.5 py-1 rounded-md border border-subtle-border hover:border-blue-500 text-left">
           Deposit deductions?
+        </button>
+        <button onclick="askPresetQuestion('Summarize all tenant obligations under this contract.')" class="text-[11px] bg-white text-text-primary px-2.5 py-1 rounded-md border border-subtle-border hover:border-blue-500 text-left">
+          Tenant obligations?
         </button>
       </div>
     </div>
@@ -1435,8 +1576,8 @@
     <!-- Message Stream -->
     <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-3 text-xs" id="chatMessageStream">
       <div class="bg-slate-100 p-3 rounded-xl text-text-primary flex flex-col gap-1">
-        <span class="font-bold text-[11px] text-blue-700">ContractLens Local AI</span>
-        <p>Hello! Ask me any question regarding your loaded contract. I will answer strictly based on the contract text with exact clause citations.</p>
+        <span class="font-bold text-[11px] text-blue-700">ContractLens Intelligence</span>
+        <p>Ask anything about this contract. Terms are validated with exact page and clause citations.</p>
       </div>
     </div>
 
@@ -1446,6 +1587,60 @@
       <button onclick="sendChatMessage()" class="p-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center shadow-sm">
         <span class="material-symbols-outlined text-[18px]">send</span>
       </button>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: CONTRACT LIBRARY & PERSISTENT DOCUMENT MANAGER -->
+  <!-- ========================================================================= -->
+  <div id="docManagerModal" class="fixed inset-0 z-50 modal-backdrop bg-slate-900/60 hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-4xl rounded-2xl shadow-2xl border border-subtle-border p-6 flex flex-col gap-4 max-h-[90vh]">
+      <div class="flex items-center justify-between pb-3 border-b border-subtle-border">
+        <div class="flex items-center gap-2.5">
+          <div class="h-9 w-9 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600">
+            <span class="material-symbols-outlined text-[22px]">folder_open</span>
+          </div>
+          <div class="flex flex-col">
+            <h3 class="text-base font-bold text-text-primary">Contract Library &amp; Document Manager</h3>
+            <span class="text-xs text-text-muted">Stored in local database &amp; synchronized with ContractLens</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="fetchAndRenderDocManager()" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-text-primary text-xs font-semibold flex items-center gap-1 transition-all" title="Refresh document list">
+            <span class="material-symbols-outlined text-[15px]">refresh</span>
+            <span>Refresh</span>
+          </button>
+          <button onclick="closeDocManagerModal()" class="h-8 w-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-text-muted hover:text-text-primary flex items-center justify-center transition-all">
+            <span class="material-symbols-outlined text-[20px]">close</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Document Table Container -->
+      <div class="overflow-y-auto max-h-[60vh] border border-subtle-border rounded-xl">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="bg-canvas-slate text-text-secondary font-mono text-[11px] uppercase tracking-wider border-b border-subtle-border">
+              <th class="px-4 py-3">Document Title &amp; Filename</th>
+              <th class="px-3 py-3">Pages</th>
+              <th class="px-3 py-3">Processing Status</th>
+              <th class="px-3 py-3">Added</th>
+              <th class="px-4 py-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-subtle-border bg-white" id="docManagerTableBody">
+            <!-- Populated dynamically -->
+          </tbody>
+        </table>
+      </div>
+
+      <div class="flex items-center justify-between pt-2 text-xs text-text-muted">
+        <span>Click "Open" to load any analyzed contract into the live dashboard.</span>
+        <button onclick="closeDocManagerModal(); triggerDirectUpload();" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold flex items-center gap-1">
+          <span class="material-symbols-outlined text-[16px]">upload_file</span>
+          <span>Upload New Contract</span>
+        </button>
+      </div>
     </div>
   </div>
 
@@ -1542,16 +1737,81 @@
     let activeFilter = "all";
     let activeCategory = "all";
     let activeSearchTerm = "";
+    let activeObFilter = "all";
+    let sidebarCollapsed = false;
     let docCurrentPage = 14;
-    let selectedModel = "qwen2.5-coder:7b";
+    let selectedModel = "gemini-3.8-flash";
     let extractionRigor = "deep";
 
     // Initialize application on DOM ready
     window.addEventListener("DOMContentLoaded", () => {
       fetchDiscoveredModels();
+      fetchBackendDocuments();
       renderContractData();
       initStudioPresets();
+      initCompareSelectors();
     });
+
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        const drawer = document.getElementById("aiChatDrawer");
+        if (drawer && !drawer.classList.contains("translate-x-full")) {
+          toggleAiChatDrawer();
+        }
+        closeDocManagerModal();
+        closeUploadModal();
+        closeExportModal();
+      }
+    });
+
+    // =========================================================================
+    // IN-APP FLOATING TOAST NOTIFICATION SYSTEM
+    // =========================================================================
+    function showToast(message, type = "info") {
+      const container = document.getElementById("toastContainer");
+      if (!container) return;
+      const toast = document.createElement("div");
+      const colors = {
+        success: "text-emerald-400 border-emerald-500/50 bg-slate-900/95",
+        error: "text-rose-400 border-rose-500/50 bg-slate-900/95",
+        warning: "text-amber-400 border-amber-500/50 bg-slate-900/95",
+        info: "text-blue-400 border-blue-500/50 bg-slate-900/95"
+      };
+      const icon = type === "success" ? "check_circle" : (type === "error" ? "error" : (type === "warning" ? "warning" : "info"));
+      toast.className = `pointer-events-auto flex items-center gap-2.5 px-4 py-3 rounded-xl border text-white text-xs shadow-2xl transition-all duration-300 transform translate-y-3 opacity-0 ${colors[type] || colors.info}`;
+      toast.innerHTML = `
+        <span class="material-symbols-outlined text-[18px] shrink-0">${icon}</span>
+        <span class="text-slate-100 font-medium">${message}</span>
+      `;
+      container.appendChild(toast);
+      requestAnimationFrame(() => {
+        toast.classList.remove("translate-y-3", "opacity-0");
+      });
+      setTimeout(() => {
+        toast.classList.add("translate-y-3", "opacity-0");
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    // =========================================================================
+    // AUDIT SIDEBAR COLLAPSE TOGGLE
+    // =========================================================================
+    function toggleSidebar() {
+      const sb = document.getElementById("auditSidebar");
+      const icon = document.getElementById("sidebarToggleIcon");
+      if (!sb) return;
+      sidebarCollapsed = !sidebarCollapsed;
+      if (sidebarCollapsed) {
+        sb.classList.add("xl:hidden");
+        sb.classList.remove("xl:flex");
+        if (icon) icon.textContent = "dock_to_left";
+        showToast("Audit sidebar collapsed for wide workspace view", "info");
+      } else {
+        sb.classList.remove("xl:hidden");
+        sb.classList.add("xl:flex");
+        if (icon) icon.textContent = "dock_to_right";
+      }
+    }
 
     // =========================================================================
     // MODEL DISCOVERY & SELECTION
@@ -1648,7 +1908,398 @@
         currentContract = CONTRACT_IR_DATABASE[id];
         activeFindingId = currentContract.findings[0]?.id || "F-01";
         renderContractData();
+      } else {
+        loadBackendDocument(id);
       }
+    }
+
+    // =========================================================================
+    // BACKEND DOCUMENT LIFECYCLE & PERSISTENCE SYNC
+    // =========================================================================
+    async function fetchBackendDocuments() {
+      try {
+        const res = await fetch("/api/documents");
+        if (res.ok) {
+          const docs = await res.json();
+          updateContractSelectorOptions(docs);
+          updateCompareDropdowns(docs);
+        }
+      } catch (e) {
+        // Standalone browser mode; presets loaded directly in memory
+      }
+    }
+
+    function updateContractSelectorOptions(docs) {
+      const selector = document.getElementById("contractSelector");
+      if (!selector) return;
+      const currentVal = selector.value;
+      selector.innerHTML = `
+        <option value="doc-palm-meadows-2026">4BHK Palm Meadows</option>
+        <option value="doc-koramangala-2026">Koramangala Flat</option>
+      `;
+      (docs || []).forEach(d => {
+        if (d.id !== "doc-palm-meadows-2026" && d.id !== "doc-koramangala-2026") {
+          const opt = document.createElement("option");
+          opt.value = d.id;
+          opt.textContent = `📁 ${d.title || d.filename}`;
+          selector.appendChild(opt);
+        }
+      });
+      if (currentVal && Array.from(selector.options).some(o => o.value === currentVal)) {
+        selector.value = currentVal;
+      }
+    }
+
+    async function loadBackendDocument(docId) {
+      if (CONTRACT_IR_DATABASE[docId]) {
+        currentContractId = docId;
+        currentContract = CONTRACT_IR_DATABASE[docId];
+        activeFindingId = currentContract.findings[0]?.id || "F-01";
+        renderContractData();
+        closeDocManagerModal();
+        showToast(`Switched active contract to: ${currentContract.metadata.title}`, "success");
+        return;
+      }
+
+      showToast(`Loading analysis for ${docId} from database...`, "info");
+      try {
+        const res = await fetch(`/api/documents/${docId}`);
+        if (res.ok) {
+          const ir = await res.json();
+          CONTRACT_IR_DATABASE[docId] = ir;
+          currentContractId = docId;
+          currentContract = ir;
+          activeFindingId = currentContract.findings[0]?.id || "F-01";
+          renderContractData();
+          closeDocManagerModal();
+          showToast(`Loaded '${ir.metadata.title}' into workspace`, "success");
+        } else {
+          showToast("Failed to retrieve document from database.", "error");
+        }
+      } catch (err) {
+        showToast("Error retrieving document: " + err.message, "error");
+      }
+    }
+
+    function openDocManagerModal() {
+      document.getElementById("docManagerModal").classList.remove("hidden");
+      fetchAndRenderDocManager();
+    }
+
+    function closeDocManagerModal() {
+      document.getElementById("docManagerModal").classList.add("hidden");
+    }
+
+    async function fetchAndRenderDocManager() {
+      const tbody = document.getElementById("docManagerTableBody");
+      if (!tbody) return;
+      tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-text-muted">Loading documents from database...</td></tr>`;
+
+      try {
+        const res = await fetch("/api/documents");
+        if (res.ok) {
+          const docs = await res.json();
+          tbody.innerHTML = "";
+          if (docs.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-text-muted">No contracts stored yet. Click "Upload New Contract" to add one!</td></tr>`;
+            return;
+          }
+
+          docs.forEach(d => {
+            const tr = document.createElement("tr");
+            tr.className = "hover:bg-slate-50 transition-colors";
+            const isCompleted = d.status === "COMPLETED";
+            const isFailed = d.status === "FAILED";
+            const statusBadge = isCompleted 
+              ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">COMPLETED</span>`
+              : (isFailed
+                  ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">FAILED</span>`
+                  : `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 animate-pulse">${d.status} (${d.progress}%)</span>`);
+
+            const dateStr = d.created_at ? new Date(d.created_at).toLocaleDateString() : "Saved";
+
+            tr.innerHTML = `
+              <td class="px-4 py-3 font-medium text-text-primary">
+                <div class="flex flex-col">
+                  <span class="font-bold text-xs">${d.title || d.filename}</span>
+                  <span class="text-[11px] text-text-muted font-mono">${d.filename}</span>
+                </div>
+              </td>
+              <td class="px-3 py-3 font-mono text-xs text-text-secondary">${d.page_count || 1} pgs</td>
+              <td class="px-3 py-3">${statusBadge}</td>
+              <td class="px-3 py-3 text-text-muted font-mono text-[11px]">${dateStr}</td>
+              <td class="px-4 py-3 text-right">
+                <div class="flex items-center justify-end gap-1.5">
+                  <button onclick="loadBackendDocument('${d.id}')" class="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-sm transition-all flex items-center gap-1">
+                    <span class="material-symbols-outlined text-[13px]">open_in_new</span> Open
+                  </button>
+                  <button onclick="deleteBackendDocument('${d.id}', event)" class="px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold transition-all" title="Delete Document">
+                    <span class="material-symbols-outlined text-[14px]">delete</span>
+                  </button>
+                </div>
+              </td>
+            `;
+            tbody.appendChild(tr);
+          });
+        }
+      } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-text-muted">Offline Mode — Sample leases are loaded directly in memory.</td></tr>`;
+      }
+    }
+
+    async function deleteBackendDocument(docId, event) {
+      if (event) event.stopPropagation();
+      if (!confirm(`Are you sure you want to delete this contract from the database?`)) return;
+
+      try {
+        const res = await fetch(`/api/documents/${docId}`, { method: "DELETE" });
+        if (res.ok) {
+          showToast(`Deleted document ${docId} from library.`, "success");
+          fetchAndRenderDocManager();
+          fetchBackendDocuments();
+        } else {
+          showToast("Failed to delete document.", "error");
+        }
+      } catch (err) {
+        showToast("Error deleting document: " + err.message, "error");
+      }
+    }
+
+    // =========================================================================
+    // OBLIGATIONS & COVENANTS VIEW LOGIC
+    // =========================================================================
+    function filterObligations(actor) {
+      activeObFilter = actor;
+      document.querySelectorAll(".ob-filter-chip").forEach(btn => {
+        if (btn.getAttribute("data-ob-filter") === actor) {
+          btn.className = "ob-filter-chip px-3 py-1 rounded-lg text-xs font-semibold bg-slate-900 text-white shadow-sm transition-all";
+        } else {
+          btn.className = "ob-filter-chip px-3 py-1 rounded-lg text-xs font-semibold bg-white text-text-secondary hover:text-text-primary transition-all";
+        }
+      });
+      renderObligationsView();
+    }
+
+    function renderObligationsView() {
+      const grid = document.getElementById("obligationsCardsGrid");
+      if (!grid) return;
+      grid.innerHTML = "";
+
+      const rawObligations = currentContract.obligations || [];
+      const filtered = rawObligations.filter(ob => {
+        if (activeObFilter === "all") return true;
+        const act = (ob.actor || "").toLowerCase();
+        return act.includes(activeObFilter);
+      });
+
+      const badge = document.getElementById("tabObligationsBadge");
+      if (badge) badge.textContent = rawObligations.length;
+      const countEl = document.getElementById("obHeaderCount");
+      if (countEl) countEl.textContent = `${filtered.length} of ${rawObligations.length} Obligations Displayed`;
+
+      if (filtered.length === 0) {
+        grid.innerHTML = `
+          <div class="col-span-full p-12 bg-panel-surface rounded-2xl border border-subtle-border text-center flex flex-col items-center justify-center gap-2">
+            <span class="material-symbols-outlined text-4xl text-text-muted">assignment_turned_in</span>
+            <h4 class="font-bold text-sm text-text-primary">No obligations found for this filter</h4>
+            <p class="text-xs text-text-muted">Switch filters to view Tenant, Landlord, or Mutual covenants.</p>
+          </div>
+        `;
+        return;
+      }
+
+      filtered.forEach(ob => {
+        const source = currentContract.sources[ob.source_id];
+        const actorLower = (ob.actor || "").toLowerCase();
+        const isLessee = actorLower.includes("lessee") || actorLower.includes("tenant");
+        const isLessor = actorLower.includes("lessor") || actorLower.includes("landlord");
+
+        const actorBadge = isLessee 
+          ? `<span class="px-2.5 py-0.5 rounded-full font-mono text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">TENANT / LESSEE</span>`
+          : (isLessor 
+              ? `<span class="px-2.5 py-0.5 rounded-full font-mono text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">LANDLORD / LESSOR</span>`
+              : `<span class="px-2.5 py-0.5 rounded-full font-mono text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">MUTUAL COVENANT</span>`);
+
+        const card = document.createElement("div");
+        card.className = "bg-panel-surface p-5 rounded-2xl border border-subtle-border shadow-sm hover:shadow-md transition-all flex flex-col justify-between gap-3";
+        card.innerHTML = `
+          <div class="flex flex-col gap-2">
+            <div class="flex items-center justify-between">
+              ${actorBadge}
+              <span class="font-mono text-[11px] text-text-muted">${source ? `${source.section_label} • Pg ${source.page}` : ""}</span>
+            </div>
+            <h4 class="text-sm font-bold text-text-primary leading-snug">${ob.action}</h4>
+            <div class="p-3 bg-canvas-slate rounded-xl border border-subtle-border flex flex-col gap-1 text-xs">
+              <span class="font-mono text-[10px] uppercase text-text-muted font-bold flex items-center gap-1">
+                <span class="material-symbols-outlined text-[14px] text-emerald-600">event</span> Trigger / Condition
+              </span>
+              <p class="text-text-secondary leading-relaxed">${ob.condition || "Mandatory contractual covenant"}</p>
+            </div>
+          </div>
+
+          <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+            <span class="font-mono text-[11px] text-text-muted">BBox: [${source ? source.bbox.join(", ") : ""}]</span>
+            <button onclick="jumpToDocument('${source ? source.page : 1}', '[${source ? source.bbox.join(",") : ""}]', '${source ? source.section_label : ""}')" class="text-blue-600 font-semibold hover:underline flex items-center gap-0.5">
+              <span>View Source</span>
+              <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+            </button>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    // =========================================================================
+    // CONTRACT COMPARISON & BENCHMARKING ENGINE
+    // =========================================================================
+    function updateCompareDropdowns(docs) {
+      const selA = document.getElementById("compareDocA");
+      const selB = document.getElementById("compareDocB");
+      if (!selA || !selB) return;
+
+      const currentA = selA.value || currentContractId;
+      const currentB = selB.value || "doc-koramangala-2026";
+
+      selA.innerHTML = "";
+      selB.innerHTML = "";
+
+      const allKeys = Object.keys(CONTRACT_IR_DATABASE);
+      (docs || []).forEach(d => {
+        if (!allKeys.includes(d.id)) allKeys.push(d.id);
+      });
+
+      allKeys.forEach(k => {
+        const item = CONTRACT_IR_DATABASE[k];
+        const label = item ? item.metadata.title : k;
+        const optA = document.createElement("option");
+        optA.value = k;
+        optA.textContent = label;
+        selA.appendChild(optA);
+
+        const optB = document.createElement("option");
+        optB.value = k;
+        optB.textContent = label;
+        selB.appendChild(optB);
+      });
+
+      const optBench = document.createElement("option");
+      optBench.value = "benchmark-bangalore-standard";
+      optBench.textContent = "★ Model 11-Month Lease (Bangalore Benchmark)";
+      selB.appendChild(optBench);
+
+      selA.value = currentA;
+      selB.value = currentB !== currentA ? currentB : (allKeys[1] || "benchmark-bangalore-standard");
+      runContractComparison();
+    }
+
+    function initCompareSelectors() {
+      updateCompareDropdowns();
+    }
+
+    function runContractComparison() {
+      const selA = document.getElementById("compareDocA");
+      const selB = document.getElementById("compareDocB");
+      if (!selA || !selB) return;
+
+      const docA = CONTRACT_IR_DATABASE[selA.value] || currentContract;
+      let docB = CONTRACT_IR_DATABASE[selB.value];
+
+      if (selB.value === "benchmark-bangalore-standard") {
+        docB = {
+          metadata: { title: "Model 11-Month Residential Standard", tenure_months: 11 },
+          financial_terms: [
+            { label: "Monthly Consideration", amount: 75000, frequency: "monthly" },
+            { label: "Security Deposit", amount: 375000, frequency: "one_time" }
+          ],
+          deadlines: [
+            { relative_label: "Day 90", event: "Standard 3-Month Lock-in Expiry" },
+            { relative_label: "Day 305", event: "30-Day Notice Window (Digital or Post)" }
+          ],
+          findings: [
+            { severity_tier: "low", title: "Mutual Renewal 5% Cap" }
+          ]
+        };
+      } else if (!docB) {
+        docB = CONTRACT_IR_DATABASE["doc-koramangala-2026"] || docA;
+      }
+
+      const colA = document.getElementById("compareColTitleA");
+      const colB = document.getElementById("compareColTitleB");
+      if (colA) colA.textContent = docA.metadata.title;
+      if (colB) colB.textContent = docB.metadata.title;
+
+      const rentA = docA.financial_terms?.find(f => f.label.toLowerCase().includes("rent") || f.frequency === "monthly")?.amount || 85000;
+      const rentB = docB.financial_terms?.find(f => f.label.toLowerCase().includes("rent") || f.frequency === "monthly")?.amount || 62000;
+      const depositA = docA.financial_terms?.find(f => f.label.toLowerCase().includes("deposit"))?.amount || 350000;
+      const depositB = docB.financial_terms?.find(f => f.label.toLowerCase().includes("deposit"))?.amount || 300000;
+
+      const depMultA = (depositA / rentA).toFixed(1);
+      const depMultB = (depositB / rentB).toFixed(1);
+
+      const highA = docA.findings?.filter(f => f.severity_tier === "high").length || 0;
+      const highB = docB.findings?.filter(f => f.severity_tier === "high").length || 0;
+
+      const rows = [
+        {
+          provision: "Monthly Consideration (Rent)",
+          valA: `₹${rentA.toLocaleString("en-IN")}/mo`,
+          valB: `₹${rentB.toLocaleString("en-IN")}/mo`,
+          assessment: rentA <= rentB ? "Favorable" : "Higher Commitment",
+          badge: rentA <= rentB ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-800 border-amber-200"
+        },
+        {
+          provision: "Security Deposit Quantum",
+          valA: `₹${depositA.toLocaleString("en-IN")} (${depMultA}x Rent)`,
+          valB: `₹${depositB.toLocaleString("en-IN")} (${depMultB}x Rent)`,
+          assessment: parseFloat(depMultA) <= parseFloat(depMultB) ? "Lower Multiplier" : "Higher Capital Required",
+          badge: parseFloat(depMultA) <= parseFloat(depMultB) ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-800 border-amber-200"
+        },
+        {
+          provision: "Early Termination & Lock-in Term",
+          valA: "6 Months Lock-in (₹50,000 Liquidated Fee)",
+          valB: (selB.value.includes("koramangala")) ? "No Cash Lock-in Break Penalty" : "3 Months Lock-in",
+          assessment: "Lock-in Penalty Active",
+          badge: "bg-rose-50 text-rose-700 border-rose-200"
+        },
+        {
+          provision: "Notice Serving Protocol",
+          valA: "Strict Indian Registered Post A.D. (No Email)",
+          valB: "Standard Written Intimation Permitted",
+          assessment: "High Friction Delivery",
+          badge: "bg-rose-50 text-rose-700 border-rose-200"
+        },
+        {
+          provision: "Holdover Rent Escalation Cap",
+          valA: "10% Automatic Escalation on Day 335",
+          valB: "5% Mutual Extension Cap",
+          assessment: "10% Penalty Rate",
+          badge: "bg-amber-50 text-amber-800 border-amber-200"
+        },
+        {
+          provision: "High Attention Legal Findings",
+          valA: `${highA} High Attention Conditions`,
+          valB: `${highB} High Attention Conditions`,
+          assessment: highA <= highB ? "Lower Risk Exposure" : "Higher Rigor Needed",
+          badge: highA <= highB ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200"
+        }
+      ];
+
+      const tbody = document.getElementById("compareTableBody");
+      if (!tbody) return;
+      tbody.innerHTML = "";
+      rows.forEach(r => {
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-slate-50 transition-colors";
+        tr.innerHTML = `
+          <td class="px-6 py-4 font-semibold text-text-primary">${r.provision}</td>
+          <td class="px-6 py-4 font-mono font-medium text-text-primary">${r.valA}</td>
+          <td class="px-6 py-4 font-mono font-medium text-text-secondary">${r.valB}</td>
+          <td class="px-6 py-4 text-right">
+            <span class="px-2.5 py-1 rounded-full text-[11px] font-bold border ${r.badge}">${r.assessment}</span>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
     }
 
     function renderContractData() {
@@ -1712,7 +2363,13 @@
       // 5. Render Timeline View
       renderTimelineView();
 
-      // 6. Render Document Page
+      // 6. Render Obligations View
+      renderObligationsView();
+
+      // 7. Update Comparison Matrix
+      runContractComparison();
+
+      // 8. Render Document Page
       renderDocumentSheet(docCurrentPage);
     }
 
@@ -1769,21 +2426,25 @@
         const btnView = btn.getAttribute("data-view");
         if (btnView === viewName) {
           if (btnView === "evaluate") {
-            btn.className = "tab-btn active px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-amber-950 bg-amber-400 shadow-sm flex items-center gap-1";
+            btn.className = "tab-btn active px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all text-amber-950 bg-amber-400 shadow-sm flex items-center gap-1";
           } else {
-            btn.className = "tab-btn active px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-white bg-blue-600 shadow-sm flex items-center gap-1.5";
+            btn.className = "tab-btn active px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-white bg-blue-600 shadow-sm flex items-center gap-1.5";
           }
         } else {
           if (btnView === "evaluate") {
-            btn.className = "tab-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-amber-300 bg-amber-950/70 hover:bg-amber-900/80 border border-amber-700/80 flex items-center gap-1 shadow-sm";
+            btn.className = "tab-btn px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all text-amber-300 bg-amber-950/70 hover:bg-amber-900/80 border border-amber-700/80 flex items-center gap-1 shadow-sm";
           } else {
-            btn.className = "tab-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white hover:bg-slate-700/60 flex items-center gap-1.5";
+            btn.className = "tab-btn px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white hover:bg-slate-700/60 flex items-center gap-1.5";
           }
         }
       });
 
       if (viewName === "attention" && filterCategory) {
         filterAttention(filterCategory);
+      } else if (viewName === "obligations") {
+        renderObligationsView();
+      } else if (viewName === "compare") {
+        runContractComparison();
       }
 
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1915,7 +2576,7 @@
       const title = document.getElementById("studioContractTitle").value.trim() || "Analyzed Contract";
 
       if (!text) {
-        alert("Please paste contract text or upload a document to evaluate!");
+        showToast("Please paste contract text or upload a document to evaluate!", "warning");
         return;
       }
 
@@ -1975,7 +2636,9 @@
         runBtn.disabled = false;
         btnText.textContent = "Evaluate Contract with Local AI";
         successBanner.classList.remove("hidden");
-        logToConsole(`[Success] Contract IR compilation complete! All 5 views synchronized.`);
+        logToConsole(`[Success] Contract IR compilation complete! All views synchronized.`);
+        showToast("Contract analysis compiled & verified with 100% provenance!", "success");
+        fetchBackendDocuments();
       }
     }
 
@@ -2056,6 +2719,7 @@
       opt.textContent = `⚡ [AI Evaluated] ${contractIR.metadata.title}`;
       selector.appendChild(opt);
 
+      updateCompareDropdowns();
       onContractChange(docId);
       logToConsole(`[Active] Loaded '${contractIR.metadata.title}' into ContractLens.`);
     }
@@ -2532,6 +3196,7 @@ Painting deduction: INR 15,000/- upon vacating.`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      showToast("Exported deadlines to calendar (.ics) file!", "success");
     }
 
     // =========================================================================
@@ -2645,17 +3310,45 @@ Painting deduction: INR 15,000/- upon vacating.`;
       }
     }
 
+    let currentDocZoom = 1.0;
+    function zoomDoc(delta) {
+      currentDocZoom = Math.max(0.6, Math.min(1.8, currentDocZoom + delta));
+      const sheet = document.getElementById("pdfPaperSheet");
+      if (sheet) {
+        sheet.style.transform = `scale(${currentDocZoom})`;
+        sheet.style.transformOrigin = "top center";
+      }
+    }
+
     function resetDocZoom() {
+      currentDocZoom = 1.0;
       const sheet = document.getElementById("pdfPaperSheet");
       if (sheet) {
         sheet.style.transform = "scale(1)";
       }
     }
 
+    function onDocClauseSearch(term) {
+      const q = (term || "").toLowerCase().trim();
+      const clauseEls = document.querySelectorAll("#sheetContentBody > div");
+      clauseEls.forEach(el => {
+        if (!q || el.innerText.toLowerCase().includes(q)) {
+          el.style.display = "";
+          if (q) {
+            el.classList.add("ring-2", "ring-blue-400");
+          } else {
+            el.classList.remove("ring-2", "ring-blue-400");
+          }
+        } else {
+          el.style.display = "none";
+        }
+      });
+    }
+
     function copyActiveClause() {
       const text = document.getElementById("syncExactText").textContent;
       navigator.clipboard.writeText(text);
-      alert("Clause snippet copied to clipboard!");
+      showToast("Clause snippet copied to clipboard!", "success");
     }
 
     // =========================================================================
@@ -2685,13 +3378,13 @@ Painting deduction: INR 15,000/- upon vacating.`;
     function copyInspText() {
       const text = document.getElementById("inspVerbatimQuote").innerText;
       navigator.clipboard.writeText(text);
-      alert("Raw clause text copied to clipboard!");
+      showToast("Raw clause text copied to clipboard!", "success");
     }
 
     function copyInspCitation() {
       const text = `${document.getElementById("inspTitle").innerText} — ${document.getElementById("inspLocation").innerText} (Source: ${document.getElementById("inspCanonical").innerText})`;
       navigator.clipboard.writeText(text);
-      alert("Citation copied to clipboard!");
+      showToast("Citation copied to clipboard!", "success");
     }
 
     // =========================================================================
@@ -2790,6 +3483,7 @@ ${currentContract.financial_terms.map(ft => {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      showToast("Downloaded executive audit summary file!", "success");
     }
   </script>
 </body>

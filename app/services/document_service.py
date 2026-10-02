@@ -36,6 +36,12 @@ class DocumentService:
 
         db = SessionLocal()
         try:
+            # Check for existing completed document with identical sha256 to save API quota
+            existing = db.query(Document).filter(Document.sha256 == sha256, Document.status == "COMPLETED").first()
+            if existing:
+                print(f"[DocumentService] Cache HIT for SHA256 {sha256[:12]}... (0 API calls needed)")
+                return existing
+
             doc = Document(
                 id=doc_id,
                 user_id=user_id,

@@ -313,6 +313,65 @@ const CONTRACT_IR_DATABASE = {
       }
     ],
 
+    obligations: [
+      {
+        id: "OB-01",
+        source_id: "SRC-05209",
+        actor: "Lessee",
+        action: "Deliver official BESCOM electricity final zero-dues clearance certificate and NOC",
+        condition: "Within seven (7) days of lease termination / vacating premises",
+        confidence: 1.0
+      },
+      {
+        id: "OB-02",
+        source_id: "SRC-01202",
+        actor: "Lessee",
+        action: "Pay monthly society maintenance charges directly to Palm Meadows Owners Association",
+        condition: "On or before the 10th calendar day of each recurring month",
+        confidence: 1.0
+      },
+      {
+        id: "OB-03",
+        source_id: "SRC-07113",
+        actor: "Lessee",
+        action: "Serve formal termination notice strictly via Indian Post Registered A.D.",
+        condition: "Post 6-month lock-in period with full 60 days advance delivery",
+        confidence: 1.0
+      },
+      {
+        id: "OB-04",
+        source_id: "SRC-02303",
+        actor: "Lessee",
+        action: "Submit written photographic inspection defect report for fixtures and woodwork",
+        condition: "Within 48 hours of initial move-in key handover",
+        confidence: 1.0
+      },
+      {
+        id: "OB-05",
+        source_id: "SRC-02102",
+        actor: "Lessor",
+        action: "Refund interest-free security deposit (INR 3,50,000/- less lawful painting deduction)",
+        condition: "Within 30 calendar days of vacant, undamaged possession handover",
+        confidence: 1.0
+      },
+      {
+        id: "OB-06",
+        source_id: "SRC-09118",
+        actor: "Lessor",
+        action: "Provide advance digital or telephonic notice prior to conducting inspections or buyer showings",
+        condition: "At least twenty-four (24) hours advance intimation during reasonable daytime hours",
+        confidence: 0.95
+      },
+      {
+        id: "OB-07",
+        source_id: "SRC-03405",
+        actor: "Mutual",
+        action: "Negotiate and execute a fresh registered secondary lease agreement",
+        condition: "At least 30 days prior to 11-month expiry to avoid 10% holdover escalation",
+        confidence: 0.95
+      }
+    ],
+
     findings: [
       {
         id: "F-01",
@@ -684,6 +743,32 @@ const CONTRACT_IR_DATABASE = {
         action: "Verify electronic NEFT acknowledgment.",
         category: "payment",
         attention_tier: "high",
+        confidence: 1.0
+      }
+    ],
+    obligations: [
+      {
+        id: "OB-KM-01",
+        source_id: "SRC-KM-03",
+        actor: "Lessee",
+        action: "Refrain strictly from housing any domestic animals or pets on the premises",
+        condition: "Throughout the entire 12-month subsistence of tenancy under penalty of full deposit forfeiture",
+        confidence: 1.0
+      },
+      {
+        id: "OB-KM-02",
+        source_id: "SRC-KM-01",
+        actor: "Lessee",
+        action: "Remit monthly inclusive rent of INR 62,000/- via direct bank transfer",
+        condition: "On or before the 1st calendar day of each month in advance",
+        confidence: 1.0
+      },
+      {
+        id: "OB-KM-03",
+        source_id: "SRC-KM-02",
+        actor: "Lessor",
+        action: "Disburse and refund refundable security deposit of INR 3,00,000/- in full",
+        condition: "Within fifteen (15) working days following move-out inspection",
         confidence: 1.0
       }
     ],

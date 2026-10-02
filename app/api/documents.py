@@ -25,6 +25,19 @@ async def upload_document(
     filename = file.filename or "contract.pdf"
     doc = DocumentService.create_document(filename=filename, file_bytes=content)
 
+    # If already completed from cache, return immediately without launching pipeline
+    if doc.status == "COMPLETED":
+        return {
+            "document_id": doc.id,
+            "filename": doc.filename,
+            "status": doc.status,
+            "stage": "Loaded from deterministic cache",
+            "progress": 100,
+            "sha256": doc.sha256,
+            "cached": True,
+            "message": "Document previously analyzed. Reused analysis with 0 API requests."
+        }
+
     # Launch background extraction pipeline
     background_tasks.add_task(
         DocumentService.process_document_pipeline,
@@ -41,6 +54,7 @@ async def upload_document(
         "stage": doc.stage,
         "progress": doc.progress,
         "sha256": doc.sha256,
+        "cached": False,
         "message": "Document uploaded successfully. Processing pipeline started in background."
     }
 
@@ -129,6 +143,27 @@ async def get_document_export(doc_id: str):
         raise HTTPException(status_code=404, detail="Document not found.")
     return res
 
+@router.get("/documents/{doc_id}")
+@router.get("/api/documents/{doc_id}")
+async def get_document(doc_id: str):
+    """Retrieve complete canonical Contract IR dictionary for the document."""
+    res = DocumentService.build_contract_ir_dict(doc_id)
+    if not res:
+        raise HTTPException(status_code=404, detail="Document not found.")
+    return res
+
+@router.get("/documents/{doc_id}/obligations")
+@router.get("/api/documents/{doc_id}/obligations")
+async def get_document_obligations(doc_id: str):
+    """Retrieve grounded obligations grouped by actor and conditions."""
+    doc_ir = DocumentService.build_contract_ir_dict(doc_id)
+    if not doc_ir:
+        raise HTTPException(status_code=404, detail="Document not found.")
+    return {
+        "document_id": doc_id,
+        "obligations": doc_ir.get("obligations", [])
+    }
+
 @router.delete("/documents/{doc_id}")
 @router.delete("/api/documents/{doc_id}")
 async def delete_document(doc_id: str):
@@ -137,3 +172,4 @@ async def delete_document(doc_id: str):
     if not success:
         raise HTTPException(status_code=404, detail="Document not found.")
     return {"status": "success", "message": f"Document {doc_id} and derived records successfully deleted."}
+
