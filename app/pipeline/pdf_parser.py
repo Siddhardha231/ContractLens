@@ -203,13 +203,55 @@ class PDFParser:
         }
 
     @classmethod
+    def locate_exact_snippet_in_pdf(
+        cls,
+        file_bytes: bytes,
+        search_snippet: str
+    ) -> Optional[Tuple[int, List[float]]]:
+        """Find exact page and [ymin, xmin, ymax, xmax] coordinates in PDF using PyMuPDF search_for."""
+        if not search_snippet or not file_bytes:
+            return None
+        try:
+            import pymupdf
+            doc = pymupdf.open(stream=file_bytes, filetype="pdf")
+            clean_snippet = re.sub(r'\s+', ' ', search_snippet.strip())
+            
+            # 1. Exact phrase search across all pages
+            for page_idx in range(len(doc)):
+                page = doc[page_idx]
+                rects = page.search_for(clean_snippet)
+                if rects:
+                    r = rects[0]
+                    return page_idx + 1, [round(r.y0, 2), round(r.x0, 2), round(r.y1, 2), round(r.x1, 2)]
+
+            # 2. Leading 6-8 words search
+            words = clean_snippet.split()
+            if len(words) >= 4:
+                lead_phrase = " ".join(words[:min(7, len(words))])
+                for page_idx in range(len(doc)):
+                    page = doc[page_idx]
+                    rects = page.search_for(lead_phrase)
+                    if rects:
+                        r = rects[0]
+                        return page_idx + 1, [round(r.y0, 2), round(r.x0, 2), round(r.y1, 2), round(r.x1, 2)]
+        except Exception:
+            pass
+        return None
+
+    @classmethod
     def locate_text_coordinates(
         cls,
         search_snippet: str,
         blocks: List[LayoutBlock],
-        fallback_page: int = 1
+        fallback_page: int = 1,
+        pdf_bytes: Optional[bytes] = None
     ) -> Tuple[int, List[float]]:
         """Find the real page and bounding box enclosing a text snippet or evidence quote."""
+        if pdf_bytes:
+            exact = cls.locate_exact_snippet_in_pdf(pdf_bytes, search_snippet)
+            if exact:
+                return exact
+
         if not search_snippet or not blocks:
             return fallback_page, [80.0, 50.0, 160.0, 520.0]
 

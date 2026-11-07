@@ -22,6 +22,7 @@ from app.config import (
 from app.db.session import init_db, get_mongo_db
 from app.api.documents import router as documents_router
 from app.api.sources import router as sources_router
+from app.api.events import router as events_router
 from app.api.legacy_compat import router as legacy_router
 
 contractlens_dir = os.path.dirname(os.path.abspath(__file__))
@@ -61,6 +62,7 @@ app.add_middleware(
 # Include Modular API Routers
 app.include_router(documents_router)
 app.include_router(sources_router)
+app.include_router(events_router)
 app.include_router(legacy_router)
 
 # Static Dashboard File Endpoints

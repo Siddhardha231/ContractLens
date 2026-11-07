@@ -21,6 +21,8 @@ class Document(Base):
     filename = Column(String(255), nullable=False)
     file_path = Column(String(512), nullable=True)
     title = Column(String(255), nullable=True)
+    contract_type = Column(String(64), default="GENERAL")
+    currency = Column(String(16), default="INR")
     parties_json = Column(Text, nullable=True)  # JSON string
     effective_date = Column(String(64), nullable=True)
     expiration_date = Column(String(64), nullable=True)
@@ -182,6 +184,8 @@ class Finding(Base):
     evidence = Column(Text, nullable=False)
     ambiguity_detected = Column(Boolean, default=False)
     ambiguity_note = Column(Text, nullable=True)
+    market_deviation = Column(Boolean, default=False)
+    suggested_counter = Column(Text, nullable=True)
     confidence = Column(Float, default=1.0)
     validation_status = Column(String(32), default="PASSED")  # PASSED, FLAGGED, REJECTED
 

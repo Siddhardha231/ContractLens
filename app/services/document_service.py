@@ -23,6 +23,7 @@ from app.pipeline.pdf_parser import PDFParser
 from app.pipeline.segmenter import ClauseSegmenter
 from app.extraction.llm_client import LLMClient
 from app.extraction.validator import DeterministicValidator
+from app.api.events import DocumentEventBroadcaster
 from app.config import DEFAULT_MODEL, DEFAULT_PROVIDER
 
 class DocumentService:
@@ -101,6 +102,12 @@ class DocumentService:
             doc.stage = "Extracting layout, pages, and text spans"
             doc.progress = 20
             db.commit()
+            await DocumentEventBroadcaster.emit(doc_id, {
+                "document_id": doc_id,
+                "status": "PARSING",
+                "stage": doc.stage,
+                "progress": 20
+            })
 
 
             file_bytes = StorageService.read_file(doc.file_path)
@@ -133,6 +140,13 @@ class DocumentService:
             doc.stage = "Segmenting semantic clauses and mapping coordinates"
             doc.progress = 40
             db.commit()
+            await DocumentEventBroadcaster.emit(doc_id, {
+                "document_id": doc_id,
+                "status": "SEGMENTING",
+                "stage": doc.stage,
+                "progress": 40,
+                "page_count": doc.page_count
+            })
 
             blocks = parsed_doc["blocks"]
             semantic_clauses = ClauseSegmenter.segment_blocks(blocks)
@@ -181,10 +195,18 @@ class DocumentService:
             doc.stage = f"Evaluating with AI model ({model})"
             doc.progress = 65
             db.commit()
+            await DocumentEventBroadcaster.emit(doc_id, {
+                "document_id": doc_id,
+                "status": "EXTRACTING",
+                "stage": doc.stage,
+                "progress": 65,
+                "model": model
+            })
 
             raw_extraction = None
             try:
-                extraction_prompt = f"""Evaluate this contract text and generate the structured Contract IR:
+                if len(doc.raw_text) <= 35000 or not semantic_clauses:
+                    extraction_prompt = f"""Evaluate this contract text and generate the structured Contract IR:
 
 CONTRACT TEXT:
 \"\"\"
@@ -193,20 +215,22 @@ CONTRACT TEXT:
 
 Produce the complete JSON analysis adhering strictly to the schema."""
 
-                llm_response = await LLMClient.query_extraction(
-                    prompt=extraction_prompt,
-                    model=model,
-                    provider=provider,
-                    temperature=temperature
-                )
-                clean_json = llm_response.strip()
-                if clean_json.startswith("```json"):
-                    clean_json = clean_json[7:]
-                if clean_json.startswith("```"):
-                    clean_json = clean_json[3:]
-                if clean_json.endswith("```"):
-                    clean_json = clean_json[:-3]
-                raw_extraction = json.loads(clean_json.strip())
+                    llm_response = await LLMClient.query_extraction(
+                        prompt=extraction_prompt,
+                        model=model,
+                        provider=provider,
+                        temperature=temperature
+                    )
+                    clean_json = cls._clean_json_str(llm_response)
+                    raw_extraction = json.loads(clean_json)
+                else:
+                    raw_extraction = await cls._extract_chunked_clauses(
+                        doc.raw_text,
+                        semantic_clauses,
+                        model,
+                        provider,
+                        temperature
+                    )
             except Exception as e:
                 print(f"[DocumentService] AI query fallback trigger: {e}")
                 raw_extraction = cls._heuristic_extraction_fallback(doc.raw_text, doc.filename)
@@ -216,6 +240,12 @@ Produce the complete JSON analysis adhering strictly to the schema."""
             doc.stage = "Executing 4-Gate deterministic validation"
             doc.progress = 85
             db.commit()
+            await DocumentEventBroadcaster.emit(doc_id, {
+                "document_id": doc_id,
+                "status": "VALIDATING",
+                "stage": doc.stage,
+                "progress": 85
+            })
 
             validated_data, audit_trail = DeterministicValidator.validate_extraction(
                 raw_data=raw_extraction,
@@ -224,6 +254,8 @@ Produce the complete JSON analysis adhering strictly to the schema."""
 
             # Update Metadata
             doc.title = validated_data.get("title") or doc.title
+            doc.contract_type = validated_data.get("contract_type", "GENERAL")
+            doc.currency = validated_data.get("currency", "INR")
             doc.parties_json = json.dumps(validated_data.get("parties", []))
             doc.effective_date = validated_data.get("effective_date")
             doc.expiration_date = validated_data.get("expiration_date")
@@ -232,7 +264,7 @@ Produce the complete JSON analysis adhering strictly to the schema."""
             # Persist Financial Terms
             for ft in validated_data.get("financial_terms", []):
                 # Map or create source with true coordinates
-                src_page, src_bbox = PDFParser.locate_text_coordinates(ft.get("evidence", ""), blocks)
+                src_page, src_bbox = PDFParser.locate_text_coordinates(ft.get("evidence", ""), blocks, pdf_bytes=file_bytes)
                 ft_src_id = f"{doc_id}-src-ft-{ft['id']}"
                 ft_src = Source(
                     id=ft_src_id,
@@ -254,7 +286,7 @@ Produce the complete JSON analysis adhering strictly to the schema."""
                     source_id=ft_src_id,
                     label=ft.get("label", "Payment Term"),
                     amount=float(ft.get("amount", 0)),
-                    currency=ft.get("currency", "INR"),
+                    currency=ft.get("currency", doc.currency or "INR"),
                     frequency=ft.get("frequency", "monthly"),
                     trigger=ft.get("trigger", "Contractual commitment"),
                     evidence=ft.get("evidence", ""),
@@ -264,7 +296,7 @@ Produce the complete JSON analysis adhering strictly to the schema."""
 
             # Persist Deadlines
             for dl in validated_data.get("deadlines", []):
-                src_page, src_bbox = PDFParser.locate_text_coordinates(dl.get("action", ""), blocks)
+                src_page, src_bbox = PDFParser.locate_text_coordinates(dl.get("action", "") or dl.get("event", ""), blocks, pdf_bytes=file_bytes)
                 dl_src_id = f"{doc_id}-src-dl-{dl['id']}"
                 dl_src = Source(
                     id=dl_src_id,
@@ -275,7 +307,7 @@ Produce the complete JSON analysis adhering strictly to the schema."""
                     bbox_xmin=src_bbox[1],
                     bbox_ymax=src_bbox[2],
                     bbox_xmax=src_bbox[3],
-                    text=dl.get("action", "")[:400]
+                    text=(dl.get("action", "") or dl.get("event", ""))[:400]
                 )
                 db.add(dl_src)
                 db.flush()
@@ -296,7 +328,7 @@ Produce the complete JSON analysis adhering strictly to the schema."""
 
             # Persist Obligations
             for ob in validated_data.get("obligations", []):
-                src_page, src_bbox = PDFParser.locate_text_coordinates(ob.get("action", ""), blocks)
+                src_page, src_bbox = PDFParser.locate_text_coordinates(ob.get("action", ""), blocks, pdf_bytes=file_bytes)
                 ob_src_id = f"{doc_id}-src-ob-{ob['id']}"
                 ob_src = Source(
                     id=ob_src_id,
@@ -324,7 +356,7 @@ Produce the complete JSON analysis adhering strictly to the schema."""
 
             # Persist Findings and Validation Audit Trail
             for f in validated_data.get("findings", []):
-                src_page, src_bbox = PDFParser.locate_text_coordinates(f.get("evidence", ""), blocks)
+                src_page, src_bbox = PDFParser.locate_text_coordinates(f.get("evidence", "") or f.get("explanation", ""), blocks, pdf_bytes=file_bytes)
                 f_src_id = f"{doc_id}-src-fnd-{f['id']}"
                 f_src = Source(
                     id=f_src_id,
@@ -335,7 +367,7 @@ Produce the complete JSON analysis adhering strictly to the schema."""
                     bbox_xmin=src_bbox[1],
                     bbox_ymax=src_bbox[2],
                     bbox_xmax=src_bbox[3],
-                    text=f.get("evidence", "")[:400]
+                    text=(f.get("evidence", "") or f.get("explanation", ""))[:400]
                 )
                 db.add(f_src)
                 db.flush()
@@ -354,6 +386,8 @@ Produce the complete JSON analysis adhering strictly to the schema."""
                     evidence=f.get("evidence", ""),
                     ambiguity_detected=f.get("ambiguity_detected", False),
                     ambiguity_note=f.get("ambiguity_note"),
+                    market_deviation=bool(f.get("market_deviation", False)),
+                    suggested_counter=f.get("suggested_counter"),
                     confidence=float(f.get("confidence", 1.0)),
                     validation_status=f.get("validation_status", "PASSED")
                 )
@@ -377,6 +411,13 @@ Produce the complete JSON analysis adhering strictly to the schema."""
             doc.progress = 100
             db.commit()
 
+            await DocumentEventBroadcaster.emit(doc_id, {
+                "document_id": doc_id,
+                "status": "COMPLETED",
+                "stage": doc.stage,
+                "progress": 100
+            })
+
             # Sync to MongoDB Atlas if connected
             cls._sync_to_mongodb(doc_id, db)
 
@@ -388,9 +429,101 @@ Produce the complete JSON analysis adhering strictly to the schema."""
                 doc.stage = "Pipeline execution failed"
                 doc.error_message = str(e)
                 db.commit()
+            await DocumentEventBroadcaster.emit(doc_id, {
+                "document_id": doc_id,
+                "status": "FAILED",
+                "stage": "Pipeline execution failed",
+                "progress": 100,
+                "error": str(e)
+            })
             print(f"[DocumentService] Pipeline error for {doc_id}: {e}")
         finally:
             db.close()
+
+    @staticmethod
+    def _clean_json_str(s: str) -> str:
+        clean = s.strip()
+        if clean.startswith("```json"):
+            clean = clean[7:]
+        elif clean.startswith("```"):
+            clean = clean[3:]
+        if clean.endswith("```"):
+            clean = clean[:-3]
+        return clean.strip()
+
+    @classmethod
+    async def _extract_chunked_clauses(
+        cls,
+        full_text: str,
+        clauses: List[Any],
+        model: str,
+        provider: str,
+        temperature: float
+    ) -> Dict[str, Any]:
+        """Process large document across batched clause windows to avoid truncation."""
+        batch_size = 10
+        aggregated_result = {
+            "title": "Contract Document",
+            "contract_type": "GENERAL",
+            "currency": "INR",
+            "parties": [],
+            "effective_date": None,
+            "expiration_date": None,
+            "tenure_months": 11,
+            "clauses": [],
+            "financial_terms": [],
+            "deadlines": [],
+            "obligations": [],
+            "findings": []
+        }
+
+        for i in range(0, len(clauses), batch_size):
+            chunk = clauses[i:i + batch_size]
+            chunk_text = "\n\n".join([f"[{c.section_label}] {c.title}\n{c.text}" for c in chunk])
+            prompt = f"""Evaluate this contract section (Clauses {i+1} to {min(i+batch_size, len(clauses))} of {len(clauses)}):
+
+SECTION TEXT:
+\"\"\"
+{chunk_text}
+\"\"\"
+
+Extract all terms, financial commitments, deadlines, obligations, and attention findings adhering strictly to the schema."""
+
+            try:
+                resp = await LLMClient.query_extraction(
+                    prompt=prompt,
+                    model=model,
+                    provider=provider,
+                    temperature=temperature
+                )
+                clean_json = cls._clean_json_str(resp)
+                chunk_data = json.loads(clean_json)
+
+                if i == 0:
+                    aggregated_result["title"] = chunk_data.get("title") or aggregated_result["title"]
+                    aggregated_result["contract_type"] = chunk_data.get("contract_type") or "GENERAL"
+                    aggregated_result["currency"] = chunk_data.get("currency") or "INR"
+                    aggregated_result["parties"] = chunk_data.get("parties", [])
+                    aggregated_result["effective_date"] = chunk_data.get("effective_date")
+                    aggregated_result["expiration_date"] = chunk_data.get("expiration_date")
+                    aggregated_result["tenure_months"] = chunk_data.get("tenure_months")
+
+                aggregated_result["financial_terms"].extend(chunk_data.get("financial_terms", []))
+                aggregated_result["deadlines"].extend(chunk_data.get("deadlines", []))
+                aggregated_result["obligations"].extend(chunk_data.get("obligations", []))
+                aggregated_result["findings"].extend(chunk_data.get("findings", []))
+            except Exception as e:
+                print(f"[DocumentService] Chunk {i} extraction error: {e}")
+
+        seen_findings = set()
+        unique_findings = []
+        for f in aggregated_result["findings"]:
+            key = (f.get("title") or "").strip().lower()
+            if key and key not in seen_findings:
+                seen_findings.add(key)
+                unique_findings.append(f)
+        aggregated_result["findings"] = unique_findings or aggregated_result["findings"]
+        return aggregated_result
 
     @classmethod
     def _sync_to_mongodb(cls, doc_id: str, db: Session):
@@ -445,6 +578,8 @@ Produce the complete JSON analysis adhering strictly to the schema."""
                     "id": doc.id,
                     "filename": doc.filename,
                     "title": doc.title or doc.filename,
+                    "contract_type": getattr(doc, "contract_type", "GENERAL") or "GENERAL",
+                    "currency": getattr(doc, "currency", "INR") or "INR",
                     "parties": parties,
                     "effective_date": doc.effective_date or "2026-10-15",
                     "expiration_date": doc.expiration_date or "2027-09-14",
@@ -512,6 +647,8 @@ Produce the complete JSON analysis adhering strictly to the schema."""
                         "evidence": f.evidence,
                         "ambiguity_detected": f.ambiguity_detected,
                         "ambiguity_note": f.ambiguity_note,
+                        "market_deviation": getattr(f, "market_deviation", False) or False,
+                        "suggested_counter": getattr(f, "suggested_counter", None),
                         "confidence": f.confidence,
                         "validation_status": f.validation_status
                     }

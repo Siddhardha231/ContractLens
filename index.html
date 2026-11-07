@@ -92,6 +92,9 @@
       backdrop-filter: blur(4px);
     }
   </style>
+
+  <!-- Mozilla PDF.js for authentic PDF rendering -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 <body class="bg-canvas-slate text-text-primary font-sans antialiased min-h-screen flex flex-col">
 
@@ -1369,6 +1372,12 @@
                 <span id="sheetHeaderPage">PAGE 14 OF 22</span>
               </div>
 
+              <!-- Authentic PDF.js Canvas Surface & Vector BBox Layer (Dynamic) -->
+              <div id="realPdfContainer" class="relative w-full flex flex-col items-center hidden my-2">
+                <canvas id="realPdfCanvas" class="shadow-md rounded border border-slate-300 max-w-full"></canvas>
+                <div id="realPdfBBoxOverlay" class="absolute inset-0"></div>
+              </div>
+
               <!-- Page Content Body (Dynamically populated based on active page) -->
               <div class="flex-1 py-6 flex flex-col gap-4 font-serif text-[13.5px] leading-relaxed text-slate-800" id="sheetContentBody">
                 <!-- Dynamically populated page clauses & paragraphs -->
@@ -2521,6 +2530,7 @@
     async function handleStudioFileSelect(event) {
       const file = event.target.files[0];
       if (!file) return;
+      window.currentStudioFile = file;
 
       logToConsole(`[Ingestion] File selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`);
       document.getElementById("studioContractTitle").value = file.name;
@@ -2594,37 +2604,86 @@
       bar.style.width = "15%";
 
       logToConsole(`[Start] Evaluating contract using ${selectedModel}...`);
-      logToConsole(`[Pipeline Stage 1] Chunking document and identifying semantic clauses...`);
 
       try {
-        bar.style.width = "40%";
-        logToConsole(`[Pipeline Stage 2] Sending extraction prompt to local AI (${selectedModel})...`);
+        if (window.currentStudioFile) {
+          const formData = new FormData();
+          formData.append("file", window.currentStudioFile);
+          formData.append("model", selectedModel);
+          formData.append("provider", selectedModel.includes("gemini") ? "gemini" : (selectedModel.includes("gemma") ? "lmstudio" : "ollama"));
+          formData.append("temperature", parseFloat(document.getElementById("tempSlider").value));
 
-        // Check if backend API is reachable
-        const res = await fetch("/api/evaluate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contract_text: text,
-            contract_title: title,
-            model: selectedModel,
-            provider: selectedModel.includes("gemini") ? "gemini" : (selectedModel.includes("gemma") ? "lmstudio" : "ollama"),
-            temperature: parseFloat(document.getElementById("tempSlider").value)
-          })
-        });
+          logToConsole(`[Pipeline] Uploading ${window.currentStudioFile.name} to REST engine...`);
+          const uploadRes = await fetch("/documents", { method: "POST", body: formData });
+          if (!uploadRes.ok) throw new Error(`Upload failed (${uploadRes.status})`);
+          const uploadData = await uploadRes.json();
+          const docId = uploadData.document_id;
+          logToConsole(`[Pipeline] Document registered: ${docId}. Subscribed to live SSE events...`);
 
-        bar.style.width = "75%";
-        logToConsole(`[Pipeline Stage 3] Response received. Running Pydantic v2 Schema Gate...`);
-
-        if (res.ok) {
-          const result = await res.json();
-          bar.style.width = "95%";
-          logToConsole(`[Pipeline Stage 4] Evidence Substring Gate Verified: 100% Provenance!`);
-          
-          const newDoc = result.contract_ir;
-          registerAndLoadNewContract(newDoc);
+          // Open SSE stream
+          await new Promise((resolve, reject) => {
+            const evtSource = new EventSource(`/documents/${docId}/events`);
+            evtSource.onmessage = async (e) => {
+              try {
+                const event = JSON.parse(e.data);
+                if (event.progress) {
+                  bar.style.width = `${event.progress}%`;
+                }
+                if (event.stage) {
+                  logToConsole(`[Live Event] ${event.status}: ${event.stage} (${event.progress || 0}%)`);
+                }
+                if (event.status === "COMPLETED") {
+                  evtSource.close();
+                  logToConsole(`[Pipeline] Analysis complete! Loading Contract IR...`);
+                  const docRes = await fetch(`/documents/${docId}`);
+                  if (docRes.ok) {
+                    const ir = await docRes.json();
+                    registerAndLoadNewContract(ir);
+                  }
+                  resolve();
+                } else if (event.status === "FAILED") {
+                  evtSource.close();
+                  reject(new Error(event.error || "Extraction failed"));
+                }
+              } catch (parseErr) {
+                console.warn(parseErr);
+              }
+            };
+            evtSource.onerror = () => {
+              evtSource.close();
+              resolve();
+            };
+          });
         } else {
-          throw new Error(`Server returned ${res.status}`);
+          // Standard /api/evaluate endpoint for pasted text
+          logToConsole(`[Pipeline Stage 1] Chunking document and identifying semantic clauses...`);
+          bar.style.width = "40%";
+          logToConsole(`[Pipeline Stage 2] Sending extraction prompt to AI engine (${selectedModel})...`);
+
+          const res = await fetch("/api/evaluate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contract_text: text,
+              contract_title: title,
+              model: selectedModel,
+              provider: selectedModel.includes("gemini") ? "gemini" : (selectedModel.includes("gemma") ? "lmstudio" : "ollama"),
+              temperature: parseFloat(document.getElementById("tempSlider").value)
+            })
+          });
+
+          bar.style.width = "75%";
+          logToConsole(`[Pipeline Stage 3] Response received. Running Pydantic v2 Schema Gate...`);
+
+          if (res.ok) {
+            const result = await res.json();
+            bar.style.width = "95%";
+            logToConsole(`[Pipeline Stage 4] Evidence Substring Gate Verified: 100% Provenance!`);
+            const newDoc = result.contract_ir;
+            registerAndLoadNewContract(newDoc);
+          } else {
+            throw new Error(`Server returned ${res.status}`);
+          }
         }
       } catch (err) {
         logToConsole(`[Direct Fallback] Backend endpoint error (${err.message}). Trying direct Ollama call...`);
@@ -3200,15 +3259,109 @@ Painting deduction: INR 15,000/- upon vacating.`;
     }
 
     // =========================================================================
-    // DOCUMENT VIEW & BIDIRECTIONAL HIGHLIGHTING
+    // DOCUMENT VIEW & BIDIRECTIONAL HIGHLIGHTING (PDF.js + Canvas Overlay)
     // =========================================================================
-    function renderDocumentSheet(pageNum) {
+    let activePdfDoc = null;
+    let activePdfDocId = null;
+
+    async function loadPdfDocument(docId) {
+      if (activePdfDocId === docId && activePdfDoc) return activePdfDoc;
+      if (!window.pdfjsLib) return null;
+      try {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+        const res = await fetch(`/documents/${docId}/file`);
+        if (!res.ok) return null;
+        const contentType = res.headers.get("content-type") || "";
+        if (!contentType.includes("pdf")) return null;
+        const arrayBuf = await res.arrayBuffer();
+        activePdfDoc = await pdfjsLib.getDocument({ data: arrayBuf }).promise;
+        activePdfDocId = docId;
+        return activePdfDoc;
+      } catch (err) {
+        console.warn("[PDF.js] Binary PDF unavailable, falling back to layout DOM:", err);
+        return null;
+      }
+    }
+
+    async function renderDocumentSheet(pageNum) {
       docCurrentPage = pageNum;
       document.getElementById("docCurrentPageInput").value = pageNum;
       document.getElementById("sheetHeaderPage").textContent = `PAGE ${pageNum} OF ${currentContract.metadata.page_count}`;
       document.getElementById("sheetHeaderTitle").textContent = currentContract.metadata.title.toUpperCase();
 
+      const pdfContainer = document.getElementById("realPdfContainer");
+      const pdfCanvas = document.getElementById("realPdfCanvas");
+      const pdfOverlay = document.getElementById("realPdfBBoxOverlay");
       const body = document.getElementById("sheetContentBody");
+
+      // Check for real PDF binary rendering
+      if (currentContract.metadata.id && currentContract.metadata.id.startsWith("doc-")) {
+        const pdf = await loadPdfDocument(currentContract.metadata.id);
+        if (pdf && pageNum <= pdf.numPages) {
+          try {
+            const page = await pdf.getPage(pageNum);
+            const containerWidth = Math.min(680, window.innerWidth - 64);
+            const unscaledViewport = page.getViewport({ scale: 1.0 });
+            const scale = containerWidth / unscaledViewport.width;
+            const viewport = page.getViewport({ scale: scale });
+
+            pdfCanvas.width = viewport.width;
+            pdfCanvas.height = viewport.height;
+            const ctx = pdfCanvas.getContext("2d");
+            await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+
+            // Render interactive vector bounding boxes
+            pdfOverlay.innerHTML = "";
+            pdfOverlay.style.width = `${viewport.width}px`;
+            pdfOverlay.style.height = `${viewport.height}px`;
+
+            const pageSources = Object.values(currentContract.sources).filter(s => s.page === pageNum);
+            pageSources.forEach(src => {
+              const box = document.createElement("div");
+              const ymin = src.bbox[0] * scale;
+              const xmin = src.bbox[1] * scale;
+              const ymax = src.bbox[2] * scale;
+              const xmax = src.bbox[3] * scale;
+
+              box.className = "absolute border-2 border-blue-500/80 bg-blue-500/10 hover:bg-blue-500/30 cursor-pointer rounded transition-all";
+              box.style.top = `${ymin}px`;
+              box.style.left = `${xmin}px`;
+              box.style.height = `${Math.max(22, ymax - ymin)}px`;
+              box.style.width = `${Math.max(45, xmax - xmin)}px`;
+              box.setAttribute("data-src-id", src.id);
+              box.setAttribute("title", `${src.section_label}: ${src.text.slice(0, 60)}...`);
+
+              box.onclick = (e) => {
+                e.stopPropagation();
+                const matchedClause = currentContract.clauses.find(c => c.source_id === src.id) || {
+                  section: src.section_label,
+                  title: src.section_label,
+                  type: "general",
+                  summary: src.text,
+                  page: src.page,
+                  bbox: src.bbox
+                };
+                const matchedFinding = currentContract.findings.find(f => f.source_id === src.id);
+                syncDocInspector(matchedClause, matchedFinding);
+                box.classList.add("ring-2", "ring-rose-500", "bg-rose-500/40");
+                setTimeout(() => box.classList.remove("ring-2", "ring-rose-500", "bg-rose-500/40"), 1500);
+              };
+
+              pdfOverlay.appendChild(box);
+            });
+
+            pdfContainer.classList.remove("hidden");
+            body.classList.add("hidden");
+            return;
+          } catch (renderErr) {
+            console.warn("[PDF.js] Render error, falling back to layout DOM:", renderErr);
+          }
+        }
+      }
+
+      // Fallback to layout DOM
+      pdfContainer.classList.add("hidden");
+      body.classList.remove("hidden");
       body.innerHTML = "";
 
       const pageClauses = currentContract.clauses.filter(c => c.page === pageNum);
@@ -3308,6 +3461,22 @@ Painting deduction: INR 15,000/- upon vacating.`;
           sheet.classList.remove("ring-4", "ring-blue-500/50");
         }, 1200);
       }
+
+      // Highlight matching box in PDF overlay if present
+      setTimeout(() => {
+        const overlay = document.getElementById("realPdfBBoxOverlay");
+        if (overlay) {
+          const boxes = overlay.querySelectorAll("div");
+          boxes.forEach(b => {
+            const title = b.getAttribute("title") || "";
+            if (sectionLabel && title.includes(sectionLabel)) {
+              b.classList.add("ring-4", "ring-rose-500", "bg-rose-500/40");
+              b.scrollIntoView({ behavior: "smooth", block: "center" });
+              setTimeout(() => b.classList.remove("ring-4", "ring-rose-500", "bg-rose-500/40"), 2500);
+            }
+          });
+        }
+      }, 350);
     }
 
     let currentDocZoom = 1.0;

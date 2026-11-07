@@ -53,6 +53,27 @@ def get_mongo_db():
     return _mongo_db
 
 def init_db():
-    """Initialize database tables."""
+    """Initialize database tables and run lightweight migrations."""
     from app.db import models  # Ensure all models are imported
     Base.metadata.create_all(bind=engine)
+
+    # Auto-migrate SQLite columns if missing
+    if is_sqlite:
+        try:
+            with engine.connect() as conn:
+                # Check documents columns
+                doc_cols = [row[1] for row in conn.exec_driver_sql("PRAGMA table_info(documents)").fetchall()]
+                if "contract_type" not in doc_cols:
+                    conn.exec_driver_sql("ALTER TABLE documents ADD COLUMN contract_type VARCHAR(64) DEFAULT 'GENERAL'")
+                if "currency" not in doc_cols:
+                    conn.exec_driver_sql("ALTER TABLE documents ADD COLUMN currency VARCHAR(16) DEFAULT 'INR'")
+
+                # Check findings columns
+                fnd_cols = [row[1] for row in conn.exec_driver_sql("PRAGMA table_info(findings)").fetchall()]
+                if "market_deviation" not in fnd_cols:
+                    conn.exec_driver_sql("ALTER TABLE findings ADD COLUMN market_deviation BOOLEAN DEFAULT 0")
+                if "suggested_counter" not in fnd_cols:
+                    conn.exec_driver_sql("ALTER TABLE findings ADD COLUMN suggested_counter TEXT")
+                conn.commit()
+        except Exception as e:
+            print(f"[ContractLens Engine] SQLite auto-migration notice: {e}")

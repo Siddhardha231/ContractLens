@@ -1,6 +1,6 @@
 """Extraction schemas for LLM structured output parsing."""
-from typing import List, Dict, Any, Optional
-from pydantic import BaseModel, Field
+from typing import List, Dict, Any, Optional, Union
+from pydantic import BaseModel, Field, field_validator
 
 class RawParty(BaseModel):
     role: str = "Party"
@@ -49,9 +49,13 @@ class RawFinding(BaseModel):
     evidence: str = ""
     ambiguity_detected: bool = False
     ambiguity_note: Optional[str] = None
+    market_deviation: bool = False
+    suggested_counter: Optional[str] = None
 
 class RawExtractionResult(BaseModel):
     title: str = "Contract Document"
+    contract_type: str = "GENERAL"
+    currency: str = "INR"
     parties: List[RawParty] = []
     effective_date: Optional[str] = None
     expiration_date: Optional[str] = None
@@ -61,6 +65,21 @@ class RawExtractionResult(BaseModel):
     deadlines: List[RawDeadline] = []
     obligations: List[RawObligation] = []
     findings: List[RawFinding] = []
+
+    @field_validator("parties", mode="before")
+    @classmethod
+    def parse_parties(cls, v):
+        if not v:
+            return []
+        res = []
+        for item in v:
+            if isinstance(item, str):
+                res.append(RawParty(name=item))
+            elif isinstance(item, dict):
+                res.append(RawParty(**item))
+            elif isinstance(item, RawParty):
+                res.append(item)
+        return res
 
 class EvaluationRequest(BaseModel):
     contract_text: str

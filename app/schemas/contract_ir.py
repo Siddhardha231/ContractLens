@@ -63,6 +63,8 @@ class FindingSchema(BaseModel):
     evidence: str
     ambiguity_detected: bool = False
     ambiguity_note: Optional[str] = None
+    market_deviation: bool = False
+    suggested_counter: Optional[str] = None
     confidence: float = 1.0
     validation_status: str = "PASSED"
 
@@ -76,6 +78,8 @@ class ContractMetadataSchema(BaseModel):
     id: str
     filename: str
     title: str
+    contract_type: str = "GENERAL"
+    currency: str = "INR"
     parties: List[PartySchema] = []
     effective_date: Optional[str] = None
     expiration_date: Optional[str] = None

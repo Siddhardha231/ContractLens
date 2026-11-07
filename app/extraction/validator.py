@@ -105,10 +105,10 @@ class DeterministicValidator:
             # Gate 3: Amount & Date Cross-Check
             g3_passed = True
             g3_notes = "Amounts and dates verified against source."
-            numbers_in_evidence = re.findall(r'\b\d{1,3}(?:,\d{3})*(?:\.\d+)?\b', evidence)
+            numbers_in_evidence = re.findall(r'\b\d{1,3}(?:,\d{2,3})*(?:\.\d+)?\b', evidence)
             for num_str in numbers_in_evidence:
                 clean_num = num_str.replace(",", "")
-                if clean_num not in contract_lower:
+                if clean_num not in contract_lower and num_str.lower() not in contract_lower:
                     g3_passed = False
                     g3_notes = f"Amount or date {num_str} not verified in source contract text."
                     confidence = min(confidence, 0.65)
@@ -124,12 +124,16 @@ class DeterministicValidator:
             # Gate 4: Ambiguity & Confidence Classification
             ambiguity_detected = bool(f.get("ambiguity_detected", False))
             ambiguity_note = f.get("ambiguity_note")
-            if not ambiguity_detected and ("not specified" in explanation.lower() or "unclear" in explanation.lower() or "silent" in explanation.lower()):
+            ambiguity_triggers = [
+                "not specified", "unclear", "silent", "does not specify",
+                "not defined", "ambiguous", "vague", "open to interpretation", "subject to deductions"
+            ]
+            if not ambiguity_detected and any(trig in explanation.lower() for trig in ambiguity_triggers):
                 ambiguity_detected = True
                 ambiguity_note = ambiguity_note or "⚠ The contract does not clearly specify this provision."
 
-            g4_passed = confidence >= 0.70
-            status = "PASSED" if g4_passed else ("FLAGGED" if confidence >= 0.50 else "REJECTED")
+            g4_passed = (confidence >= 0.70) and g2_passed
+            status = "PASSED" if (confidence >= 0.70 and g2_passed) else ("FLAGGED" if (g2_passed and confidence >= 0.50) else "REJECTED")
 
             audit_trail.append(GateAuditRecord(
                 finding_id=fid,

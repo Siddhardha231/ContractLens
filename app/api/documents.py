@@ -1,6 +1,9 @@
 """PDD §11 RESTful Document Endpoints and View Payloads."""
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, BackgroundTasks
+from fastapi.responses import FileResponse, HTMLResponse
 from typing import Optional, List, Dict, Any
+import os
+from app.services.export_service import ExportService
 from app.services.document_service import DocumentService
 from app.config import DEFAULT_MODEL, DEFAULT_PROVIDER
 from app.db.session import SessionLocal
@@ -143,6 +146,16 @@ async def get_document_export(doc_id: str):
         raise HTTPException(status_code=404, detail="Document not found.")
     return res
 
+@router.get("/documents/{doc_id}/export/html")
+@router.get("/api/documents/{doc_id}/export/html")
+async def get_document_export_html(doc_id: str):
+    """Serve a printable, formatted executive audit report in HTML."""
+    contract_ir = DocumentService.build_contract_ir_dict(doc_id)
+    if not contract_ir:
+        raise HTTPException(status_code=404, detail="Document not found.")
+    html_content = ExportService.generate_html_report(contract_ir)
+    return HTMLResponse(content=html_content)
+
 @router.get("/documents/{doc_id}")
 @router.get("/api/documents/{doc_id}")
 async def get_document(doc_id: str):
@@ -164,6 +177,20 @@ async def get_document_obligations(doc_id: str):
         "obligations": doc_ir.get("obligations", [])
     }
 
+@router.get("/documents/{doc_id}/file")
+@router.get("/api/documents/{doc_id}/file")
+async def get_document_file(doc_id: str):
+    """Serve the original document file for embedded PDF/document rendering."""
+    db = SessionLocal()
+    try:
+        doc = db.query(Document).filter(Document.id == doc_id).first()
+        if not doc or not doc.file_path or not os.path.exists(doc.file_path):
+            raise HTTPException(status_code=404, detail="Document file not found.")
+        media_type = "application/pdf" if doc.filename.lower().endswith(".pdf") else "text/plain; charset=utf-8"
+        return FileResponse(doc.file_path, media_type=media_type, filename=doc.filename)
+    finally:
+        db.close()
+
 @router.delete("/documents/{doc_id}")
 @router.delete("/api/documents/{doc_id}")
 async def delete_document(doc_id: str):
@@ -171,5 +198,5 @@ async def delete_document(doc_id: str):
     success = DocumentService.delete_document(doc_id)
     if not success:
         raise HTTPException(status_code=404, detail="Document not found.")
-    return {"status": "success", "message": f"Document {doc_id} and derived records successfully deleted."}
+    return {"status": "success", "deleted": True, "message": f"Document {doc_id} and derived records successfully deleted."}
 
