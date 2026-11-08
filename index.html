@@ -1065,7 +1065,7 @@
             </div>
             <div class="flex items-center gap-2">
               <span class="px-2.5 py-1 rounded-md bg-canvas-slate border border-subtle-border font-mono text-xs font-bold text-text-primary">INR (₹)</span>
-              <button onclick="showToast('Cashflow schedule exported!', 'success')" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition-all flex items-center gap-1">
+              <button onclick="downloadFinancialSchedule()" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition-all flex items-center gap-1">
                 <span class="material-symbols-outlined text-[16px]">download</span>
                 <span>Download Schedule</span>
               </button>
@@ -3653,6 +3653,52 @@ ${currentContract.financial_terms.map(ft => {
       link.click();
       document.body.removeChild(link);
       showToast("Downloaded executive audit summary file!", "success");
+    }
+
+    function downloadFinancialSchedule() {
+      const terms = currentContract.financial_terms || [];
+      if (terms.length === 0) {
+        showToast("There are no financial terms to export.", "info");
+        return;
+      }
+
+      const columns = [
+        "Contract", "Item", "Amount", "Currency", "Frequency", "Type", "Trigger",
+        "Evidence", "Source ID", "Section", "Page", "Bounding Box", "Confidence"
+      ];
+      const csvCell = value => `"${String(value ?? "").replace(/"/g, '""')}"`;
+      const rows = terms.map(term => {
+        const source = currentContract.sources?.[term.source_id] || {};
+        const bbox = source.bbox || [source.bbox_ymin, source.bbox_xmin, source.bbox_ymax, source.bbox_xmax];
+        return [
+          currentContract.metadata.title,
+          term.label,
+          term.amount,
+          term.currency || currentContract.metadata.currency || "",
+          term.frequency,
+          term.type || term.term_type,
+          term.trigger,
+          term.evidence,
+          term.source_id,
+          source.section_label,
+          source.page,
+          Array.isArray(bbox) ? bbox.join(", ") : "",
+          term.confidence
+        ].map(csvCell).join(",");
+      });
+
+      const csv = "\uFEFF" + [columns.map(csvCell).join(","), ...rows].join("\r\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const filename = (currentContract.metadata.filename || "contract").replace(/\.[^.]+$/, "");
+      link.href = url;
+      link.download = `${filename}-financial-schedule.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showToast(`Downloaded ${terms.length} sourced financial terms as CSV.`, "success");
     }
   </script>
 </body>

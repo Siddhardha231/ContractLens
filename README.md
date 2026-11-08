@@ -48,6 +48,7 @@ ContractLens connects directly to your machine's local AI runtimes (**Ollama** a
 4. **Money View (`#view-money`)**
    - **Financial Exposure Digest:** Sourced breakdown of Monthly Recurring commitments, Upfront Capital Required, and Maximum Conditional Liabilities.
    - **Itemized Financial Schedule:** Every ₹ amount links to its canonical clause and bounding box.
+   - **CSV Schedule Export:** Download financial terms with amounts, frequency, evidence, source IDs, section/page references, bounding boxes, and confidence for spreadsheet review.
    - **Escalation Simulator:** Interactive scenario comparison between timely mutual renewal vs unregistered holdover penalty.
 
 5. **Timeline View (`#view-timeline`)**
