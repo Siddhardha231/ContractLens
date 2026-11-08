@@ -205,7 +205,7 @@
         </button>
         
         <!-- EVALUATE STUDIO TAB -->
-        <button onclick="switchView('evaluate')" data-view="evaluate" title="Contract Evaluation Studio" aria-label="Contract Evaluation Studio" class="tab-btn shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all text-amber-300 bg-amber-950/70 hover:bg-amber-900/80 border border-amber-700/80 flex items-center gap-1 shadow-sm">
+        <button onclick="switchView('evaluate')" data-view="evaluate" title="Contract Evaluation Studio" aria-label="Contract Evaluation Studio" class="tab-btn shrink-0 whitespace-nowrap px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all text-amber-300 bg-amber-950/70 hover:bg-amber-900/80 border border-amber-700/80 flex items-center gap-1 shadow-sm">
           <span class="material-symbols-outlined text-[15px] text-amber-400">bolt</span>
           <span class="sr-only xl:not-sr-only">Studio</span>
         </button>
@@ -2435,13 +2435,13 @@
         const btnView = btn.getAttribute("data-view");
         if (btnView === viewName) {
           if (btnView === "evaluate") {
-            btn.className = "tab-btn active px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all text-amber-950 bg-amber-400 shadow-sm flex items-center gap-1";
+            btn.className = "tab-btn active shrink-0 whitespace-nowrap px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all text-amber-950 bg-amber-400 shadow-sm flex items-center gap-1";
           } else {
             btn.className = "tab-btn active px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-white bg-blue-600 shadow-sm flex items-center gap-1.5";
           }
         } else {
           if (btnView === "evaluate") {
-            btn.className = "tab-btn px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all text-amber-300 bg-amber-950/70 hover:bg-amber-900/80 border border-amber-700/80 flex items-center gap-1 shadow-sm";
+            btn.className = "tab-btn shrink-0 whitespace-nowrap px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all text-amber-300 bg-amber-950/70 hover:bg-amber-900/80 border border-amber-700/80 flex items-center gap-1 shadow-sm";
           } else {
             btn.className = "tab-btn px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white hover:bg-slate-700/60 flex items-center gap-1.5";
           }
