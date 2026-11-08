@@ -171,43 +171,43 @@
 
       <!-- Core Tabs Navigation (Including Obligations, Compare, and Studio) -->
       <nav class="hidden lg:flex items-center gap-1 bg-slate-800/80 p-1 rounded-xl border border-slate-700 shrink-0" id="mainTabsNav">
-        <button onclick="switchView('overview')" data-view="overview" class="tab-btn active px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-white bg-blue-600 shadow-sm flex items-center gap-1.5">
+        <button onclick="switchView('overview')" data-view="overview" title="Overview" aria-label="Overview" class="tab-btn active px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-white bg-blue-600 shadow-sm flex items-center gap-1.5">
           <span class="material-symbols-outlined text-[15px]">dashboard</span>
-          <span>Overview</span>
+          <span class="sr-only xl:not-sr-only">Overview</span>
         </button>
-        <button onclick="switchView('attention')" data-view="attention" class="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white hover:bg-slate-700/60 flex items-center gap-1.5">
+        <button onclick="switchView('attention')" data-view="attention" title="Attention" aria-label="Attention" class="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white hover:bg-slate-700/60 flex items-center gap-1.5">
           <span class="material-symbols-outlined text-[15px]">notification_important</span>
-          <span>Attention</span>
+          <span class="sr-only xl:not-sr-only">Attention</span>
           <span class="px-1.5 py-0.2 rounded-full text-[10px] bg-rose-500/20 text-rose-300 font-mono font-semibold" id="tabAttentionBadge">7</span>
         </button>
-        <button onclick="switchView('money')" data-view="money" class="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white hover:bg-slate-700/60 flex items-center gap-1.5">
+        <button onclick="switchView('money')" data-view="money" title="Money" aria-label="Money" class="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white hover:bg-slate-700/60 flex items-center gap-1.5">
           <span class="material-symbols-outlined text-[15px]">payments</span>
-          <span>Money</span>
+          <span class="sr-only xl:not-sr-only">Money</span>
         </button>
-        <button onclick="switchView('timeline')" data-view="timeline" class="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white hover:bg-slate-700/60 flex items-center gap-1.5">
+        <button onclick="switchView('timeline')" data-view="timeline" title="Timeline" aria-label="Timeline" class="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white hover:bg-slate-700/60 flex items-center gap-1.5">
           <span class="material-symbols-outlined text-[15px]">event_repeat</span>
-          <span>Timeline</span>
+          <span class="sr-only xl:not-sr-only">Timeline</span>
         </button>
         <!-- NEW TAB: OBLIGATIONS & COVENANTS -->
-        <button onclick="switchView('obligations')" data-view="obligations" class="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white hover:bg-slate-700/60 flex items-center gap-1.5">
+        <button onclick="switchView('obligations')" data-view="obligations" title="Obligations" aria-label="Obligations" class="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white hover:bg-slate-700/60 flex items-center gap-1.5">
           <span class="material-symbols-outlined text-[15px]">rule</span>
-          <span>Obligations</span>
+          <span class="sr-only xl:not-sr-only">Obligations</span>
           <span class="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-500/20 text-emerald-300 font-mono font-semibold" id="tabObligationsBadge">7</span>
         </button>
         <!-- NEW TAB: CONTRACT COMPARISON & BENCHMARK -->
-        <button onclick="switchView('compare')" data-view="compare" class="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white hover:bg-slate-700/60 flex items-center gap-1.5">
+        <button onclick="switchView('compare')" data-view="compare" title="Compare contracts" aria-label="Compare contracts" class="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white hover:bg-slate-700/60 flex items-center gap-1.5">
           <span class="material-symbols-outlined text-[15px]">compare_arrows</span>
-          <span>Compare</span>
+          <span class="sr-only xl:not-sr-only">Compare</span>
         </button>
-        <button onclick="switchView('document')" data-view="document" class="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white hover:bg-slate-700/60 flex items-center gap-1.5">
+        <button onclick="switchView('document')" data-view="document" title="Document" aria-label="Document" class="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white hover:bg-slate-700/60 flex items-center gap-1.5">
           <span class="material-symbols-outlined text-[15px]">find_in_page</span>
-          <span>Document</span>
+          <span class="sr-only xl:not-sr-only">Document</span>
         </button>
         
         <!-- EVALUATE STUDIO TAB -->
-        <button onclick="switchView('evaluate')" data-view="evaluate" class="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all text-amber-300 bg-amber-950/70 hover:bg-amber-900/80 border border-amber-700/80 flex items-center gap-1 shadow-sm">
+        <button onclick="switchView('evaluate')" data-view="evaluate" title="Contract Evaluation Studio" aria-label="Contract Evaluation Studio" class="tab-btn shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all text-amber-300 bg-amber-950/70 hover:bg-amber-900/80 border border-amber-700/80 flex items-center gap-1 shadow-sm">
           <span class="material-symbols-outlined text-[15px] text-amber-400">bolt</span>
-          <span>Studio</span>
+          <span class="sr-only xl:not-sr-only">Studio</span>
         </button>
       </nav>
 
